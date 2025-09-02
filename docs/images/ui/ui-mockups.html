@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram綁定UI設計示範</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --primary-color: #007bff;
+            --primary-hover: #0056b3;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --telegram-color: #0088cc;
+            --bg-light: #f8f9fa;
+            --bg-card: #ffffff;
+            --border-color: #dee2e6;
+            --text-color: #495057;
+            --text-light: #6c757d;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-light);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .demo-section {
+            margin-bottom: 40px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .section-header {
+            background: var(--primary-color);
+            color: white;
+            padding: 15px 20px;
+        }
+        
+        .section-content {
+            padding: 20px;
+        }
+        
+        /* 個人設定頁面樣式 */
+        .settings-card {
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .card-title {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+        
+        .card-title .icon-bell {
+            margin-right: 8px;
+        }
+        
+        .notification-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            margin-bottom: 12px;
+        }
+        
+        .item-info {
+            display: flex;
+            align-items: center;
+        }
+        
+        .service-icon {
+            font-size: 1.5rem;
+            margin-right: 12px;
+        }
+        
+        .service-details h4 {
+            margin-bottom: 4px;
+        }
+        
+        .service-desc {
+            color: var(--text-light);
+            font-size: 0.9rem;
+        }
+        
+        .item-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .status {
+            font-weight: 500;
+        }
+        
+        .status.unbound {
+            color: var(--warning-color);
+        }
+        
+        .status.bound {
+            color: var(--success-color);
+        }
+        
+        .username {
+            color: var(--text-light);
+            font-family: monospace;
+        }
+        
+        /* 按鈕樣式 */
+        .btn {
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: var(--primary-hover);
+        }
+        
+        .btn-secondary {
+            background: var(--text-light);
+            color: white;
+        }
+        
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--primary-color);
+        }
+        
+        .btn-telegram {
+            background: var(--telegram-color);
+            color: white;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 20px;
+            font-size: 1rem;
+        }
+        
+        /* 綁定引導頁面樣式 */
+        .binding-wizard {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .wizard-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .wizard-header h2 {
+            margin-bottom: 8px;
+        }
+        
+        .desc {
+            color: var(--text-light);
+        }
+        
+        .wizard-steps {
+            margin-bottom: 30px;
+        }
+        
+        .step-item {
+            display: flex;
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+        }
+        
+        .step-number {
+            width: 40px;
+            height: 40px;
+            background: var(--primary-color);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 20px;
+            flex-shrink: 0;
+        }
+        
+        .step-content h3 {
+            margin-bottom: 10px;
+        }
+        
+        .verification-box {
+            background: var(--bg-light);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 20px;
+            margin-top: 15px;
+        }
+        
+        .code-display {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .code {
+            font-family: 'Courier New', monospace;
+            font-size: 1.2rem;
+            font-weight: bold;
+            background: white;
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            letter-spacing: 2px;
+        }
+        
+        .btn-copy {
+            background: var(--success-color);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .code-info {
+            display: flex;
+            justify-content: space-between;
+            color: var(--text-light);
+            font-size: 0.9rem;
+        }
+        
+        .wizard-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        
+        /* 通知設定頁面樣式 */
+        .settings-group {
+            margin-bottom: 30px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+        }
+        
+        .group-title {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            color: var(--primary-color);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+        
+        .setting-item {
+            margin-bottom: 15px;
+        }
+        
+        .setting-label {
+            display: flex;
+            align-items: flex-start;
+            cursor: pointer;
+            gap: 12px;
+        }
+        
+        .label-text {
+            font-weight: 500;
+        }
+        
+        .label-desc {
+            display: block;
+            color: var(--text-light);
+            font-size: 0.85rem;
+            margin-top: 2px;
+        }
+        
+        .toggle {
+            width: 20px;
+            height: 20px;
+            margin-top: 2px;
+            flex-shrink: 0;
+        }
+        
+        .time-settings {
+            background: var(--bg-light);
+            padding: 15px;
+            border-radius: 6px;
+        }
+        
+        .time-range {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .time-input {
+            padding: 6px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+        }
+        
+        .separator {
+            color: var(--text-light);
+        }
+        
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+        }
+        
+        /* 成功訊息樣式 */
+        .success-message {
+            text-align: center;
+            background: var(--success-color);
+            color: white;
+            padding: 30px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        
+        .success-message h3 {
+            margin: 10px 0;
+        }
+        
+        .success-message .btn {
+            margin-top: 15px;
+            background: white;
+            color: var(--success-color);
+        }
+        
+        /* 響應式設計 */
+        @media (max-width: 768px) {
+            .notification-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            
+            .item-status {
+                width: 100%;
+                justify-content: space-between;
+            }
+            
+            .step-item {
+                flex-direction: column;
+            }
+            
+            .step-number {
+                margin-right: 0;
+                margin-bottom: 10px;
+            }
+            
+            .wizard-actions {
+                flex-direction: column;
+            }
+            
+            .form-actions {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 style="text-align: center; margin-bottom: 30px; color: var(--primary-color);">
+            📱 Telegram綁定功能 UI 設計示範
+        </h1>
+        
+        <!-- 個人設定頁面 -->
+        <div class="demo-section">
+            <div class="section-header">
+                <h2>1. 個人設定頁面 (/user/settings)</h2>
+            </div>
+            <div class="section-content">
+                <div class="settings-card">
+                    <h3 class="card-title">
+                        <span class="icon-bell">🔔</span> 通知設定
+                    </h3>
+                    
+                    <!-- Telegram未綁定狀態 -->
+                    <div class="notification-item">
+                        <div class="item-info">
+                            <span class="service-icon">📱</span>
+                            <div class="service-details">
+                                <h4>Telegram 通知</h4>
+                                <p class="service-desc">即時接收機台狀態推播</p>
+                            </div>
+                        </div>
+                        <div class="item-status">
+                            <span class="status unbound">○ 未綁定</span>
+                            <button class="btn btn-primary">開始綁定</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Email已設定狀態 -->
+                    <div class="notification-item">
+                        <div class="item-info">
+                            <span class="service-icon">📧</span>
+                            <div class="service-details">
+                                <h4>Email 通知</h4>
+                                <p class="service-desc">重要事件郵件提醒</p>
+                            </div>
+                        </div>
+                        <div class="item-status">
+                            <span class="status bound">✅ 已設定</span>
+                            <span class="username">user@example.com</span>
+                            <button class="btn btn-secondary">修改設定</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 已綁定狀態示範 -->
+                <div class="settings-card">
+                    <h3 class="card-title">
+                        <span class="icon-bell">🔔</span> 通知設定 (已綁定狀態)
+                    </h3>
+                    
+                    <div class="notification-item">
+                        <div class="item-info">
+                            <span class="service-icon">📱</span>
+                            <div class="service-details">
+                                <h4>Telegram 通知</h4>
+                                <p class="service-desc">即時接收機台狀態推播</p>
+                            </div>
+                        </div>
+                        <div class="item-status">
+                            <span class="status bound">✅ 已綁定</span>
+                            <span class="username">@coinchanger_user</span>
+                            <button class="btn btn-secondary">通知設定</button>
+                            <button class="btn btn-outline">解除綁定</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 綁定引導頁面 -->
+        <div class="demo-section">
+            <div class="section-header">
+                <h2>2. Telegram綁定引導頁面 (/user/telegram-binding)</h2>
+            </div>
+            <div class="section-content">
+                <div class="binding-wizard">
+                    <div class="wizard-header">
+                        <h2>📱 綁定 Telegram 帳號</h2>
+                        <p class="desc">完成綁定後，您將可以即時收到機台狀態通知</p>
+                    </div>
+                    
+                    <div class="wizard-steps">
+                        <!-- 步驟1 -->
+                        <div class="step-item">
+                            <div class="step-number">1</div>
+                            <div class="step-content">
+                                <h3>🤖 加入我們的 Bot</h3>
+                                <p>點擊下方按鈕加入 CoinChanger 通知機器人：</p>
+                                <br>
+                                <a href="#" class="btn-telegram">
+                                    🔗 加入 CoinChanger Bot
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <!-- 步驟2 -->
+                        <div class="step-item">
+                            <div class="step-number">2</div>
+                            <div class="step-content">
+                                <h3>📝 發送綁定驗證碼</h3>
+                                <p>在 Telegram 中發送以下驗證碼給機器人：</p>
+                                
+                                <div class="verification-box">
+                                    <div class="code-display">
+                                        <span class="code">ABC123</span>
+                                        <button class="btn-copy">📋 複製</button>
+                                    </div>
+                                    <div class="code-info">
+                                        <span>⏱️ 有效期：9分鐘</span>
+                                        <span>⚡ 綁定狀態：等待驗證中...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="wizard-actions">
+                        <button class="btn btn-outline">重新生成驗證碼</button>
+                        <button class="btn btn-primary">完成綁定</button>
+                    </div>
+                    
+                    <!-- 成功訊息 -->
+                    <div class="success-message" style="display: none;">
+                        <div style="font-size: 2rem;">✅</div>
+                        <h3>綁定成功！</h3>
+                        <p>現在您可以設定通知偏好</p>
+                        <button class="btn">設定通知偏好</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 通知設定頁面 -->
+        <div class="demo-section">
+            <div class="section-header">
+                <h2>3. 通知偏好設定頁面 (/user/notification-settings)</h2>
+            </div>
+            <div class="section-content">
+                <div style="max-width: 800px; margin: 0 auto;">
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <h2>🔔 通知偏好設定</h2>
+                        <p class="desc">自訂您想要接收的通知類型和時段</p>
+                    </div>
+                    
+                    <!-- 異常通知 -->
+                    <div class="settings-group">
+                        <h3 class="group-title">
+                            🚨 異常通知
+                        </h3>
+                        <div class="setting-item">
+                            <label class="setting-label">
+                                <input type="checkbox" checked class="toggle">
+                                <div>
+                                    <span class="label-text">機台離線通知</span>
+                                    <span class="label-desc">當機台失去網路連線時通知</span>
+                                </div>
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <label class="setting-label">
+                                <input type="checkbox" checked class="toggle">
+                                <div>
+                                    <span class="label-text">硬體故障通知</span>
+                                    <span class="label-desc">機台硬體出現問題時通知</span>
+                                </div>
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <label class="setting-label">
+                                <input type="checkbox" class="toggle">
+                                <div>
+                                    <span class="label-text">網路異常通知</span>
+                                    <span class="label-desc">網路連線不穩定時通知</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- 交易通知 -->
+                    <div class="settings-group">
+                        <h3 class="group-title">
+                            💰 交易通知
+                        </h3>
+                        <div class="setting-item">
+                            <label class="setting-label">
+                                <input type="checkbox" checked class="toggle">
+                                <div>
+                                    <span class="label-text">大額交易通知</span>
+                                    <span class="label-desc">單筆交易超過 500 元時通知</span>
+                                </div>
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <label class="setting-label">
+                                <input type="checkbox" class="toggle">
+                                <div>
+                                    <span class="label-text">每日交易匯總</span>
+                                    <span class="label-desc">每日營業結束後發送交易統計</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- 通知時段 -->
+                    <div class="settings-group">
+                        <h3 class="group-title">
+                            ⏰ 通知時段
+                        </h3>
+                        <div class="time-settings">
+                            <div class="time-range">
+                                <label>營業時間：</label>
+                                <input type="time" value="09:00" class="time-input">
+                                <span class="separator">至</span>
+                                <input type="time" value="22:00" class="time-input">
+                            </div>
+                            <div class="setting-item">
+                                <label class="setting-label">
+                                    <input type="checkbox" checked class="toggle">
+                                    <div>
+                                        <span class="label-text">僅在營業時間內發送通知</span>
+                                        <span class="label-desc">營業時間外暫停一般通知</span>
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="setting-item">
+                                <label class="setting-label">
+                                    <input type="checkbox" checked class="toggle">
+                                    <div>
+                                        <span class="label-text">24小時接收緊急通知</span>
+                                        <span class="label-desc">重要異常隨時通知</span>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button class="btn btn-outline">👁️ 預覽通知</button>
+                        <button class="btn btn-outline">🔄 重設為預設</button>
+                        <button class="btn btn-primary">💾 儲存設定</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 簡單的互動演示
+        document.addEventListener('DOMContentLoaded', function() {
+            // 複製按鈕功能
+            const copyBtn = document.querySelector('.btn-copy');
+            if (copyBtn) {
+                copyBtn.addEventListener('click', function() {
+                    const code = document.querySelector('.code').textContent;
+                    navigator.clipboard.writeText(code).then(function() {
+                        copyBtn.textContent = '✅ 已複製';
+                        setTimeout(() => {
+                            copyBtn.textContent = '📋 複製';
+                        }, 2000);
+                    });
+                });
+            }
+            
+            // 完成綁定按鈕演示
+            const completeBtn = document.querySelector('.wizard-actions .btn-primary');
+            if (completeBtn) {
+                completeBtn.addEventListener('click', function() {
+                    const successMsg = document.querySelector('.success-message');
+                    if (successMsg) {
+                        successMsg.style.display = 'block';
+                        successMsg.scrollIntoView({ behavior: 'smooth' });
+                    }
+                });
+            }
+            
+            // 儲存設定按鈕演示
+            const saveBtn = document.querySelector('.form-actions .btn-primary');
+            if (saveBtn) {
+                saveBtn.addEventListener('click', function() {
+                    const originalText = saveBtn.textContent;
+                    saveBtn.textContent = '⏳ 儲存中...';
+                    saveBtn.disabled = true;
+                    
+                    setTimeout(() => {
+                        saveBtn.textContent = '✅ 儲存成功';
+                        setTimeout(() => {
+                            saveBtn.textContent = originalText;
+                            saveBtn.disabled = false;
+                        }, 1500);
+                    }, 1000);
+                });
+            }
+        });
+    </script>
+</body>
+</html>

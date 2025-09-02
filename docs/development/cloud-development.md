@@ -152,12 +152,13 @@ GET  /api/machines/:id/commands   // 指令執行狀態
 ```javascript
 功能範圍：
 - 建立Telegram Bot
-- 用戶綁定機制
+- 用戶綁定機制與驗證碼系統
 - 故障通知推播  
 - 兌幣通知推播
 - 推播記錄管理
+- 綁定狀態API
 
-預估時間：16小時
+預估時間：20小時 (+4小時用於綁定功能)
 ```
 
 ## 第五階段：系統整合與優化 (第8-10週)
@@ -169,8 +170,47 @@ GET  /api/machines/:id/commands   // 指令執行狀態
 - 建立API適配層
 - 修改前端API端點
 - 確保資料格式相容
+- 新增Telegram綁定前端頁面
 
-預估時間：20小時
+預估時間：28小時 (+8小時用於前端頁面開發)
+```
+
+### 14.1 前端Telegram綁定頁面開發
+```javascript
+新增頁面：
+- /user/settings - 個人設定頁面 (新增通知區塊)
+- /user/telegram-binding - Telegram綁定引導頁面
+- /user/notification-settings - 通知偏好設定頁面
+
+前端功能：
+- 綁定狀態檢查與顯示
+- 驗證碼生成與複製功能
+- 綁定流程引導UI
+- 通知偏好設定表單
+- 即時綁定狀態更新
+- 響應式設計支援手機與桌面
+- 步驟指示器與進度追蹤
+- 錯誤處理與用戶反饋
+
+UI/UX規格參考：docs/technical/telegram-ui-design.md
+互動示範頁面：docs/images/ui/ui-mockups.html
+
+API整合：
+- POST /api/telegram/generate-code - 生成綁定驗證碼
+- POST /api/telegram/bind - 執行綁定驗證
+- DELETE /api/telegram/unbind - 解除綁定
+- GET /api/telegram/status - 檢查綁定狀態
+- GET/PUT /api/user/notification-settings - 通知設定管理
+- POST /api/telegram/test-notification - 測試通知功能
+
+前端技術堆疊：
+- Vue.js 3 Composition API
+- Element Plus UI 框架
+- Axios HTTP 客戶端
+- Vue Router 路由管理
+- Pinia 狀態管理
+
+預估時間：16小時 (增加UI/UX精細化開發時間)
 ```
 
 ### 15. 建立資料庫備份機制
@@ -229,10 +269,10 @@ GET  /api/machines/:id/commands   // 指令執行狀態
 | 第一階段 | 1-2週 | 基礎設施建置 | 13小時 |
 | 第二階段 | 2-3週 | 資料庫與MQTT整合 | 11小時 |
 | 第三階段 | 3-6週 | 核心API開發 | 84小時 |
-| 第四階段 | 6-8週 | 整合與推播 | 40小時 |
-| 第五階段 | 8-10週 | 優化與維護 | 40小時 |
+| 第四階段 | 6-8週 | 整合與推播 | 44小時 *(+4小時)* |
+| 第五階段 | 8-10週 | 優化與前端開發 | 64小時 *(+24小時)* |
 | 第六階段 | 10-12週 | 測試與部署 | 40小時 |
-| **總計** | **12週** |  | **228小時** |
+| **總計** | **12週** | **含Telegram綁定功能** | **256小時** *(+28小時)* |
 
 ## 關鍵成功因素
 
