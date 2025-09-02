@@ -40,7 +40,8 @@ graph TD
 ```
 
 #### UI設計說明
-![個人設定頁面示意圖](../images/ui/settings-page.png)
+
+> 💻 **互動式示範**: [點擊查看完整UI示範頁面](../images/ui/ui-mockups.html#settings)
 
 **設計要點：**
 - 採用卡片式設計，清楚區分不同設定區塊
@@ -119,7 +120,8 @@ graph TD
 ```
 
 #### UI設計說明
-![綁定引導頁面示意圖](../images/ui/binding-wizard.png)
+
+> 💻 **互動式示範**: [點擊查看完整UI示範頁面](../images/ui/ui-mockups.html#binding)
 
 **設計要點：**
 - 採用步驟式引導設計
@@ -207,7 +209,8 @@ graph TD
 ```
 
 #### UI設計說明
-![通知設定頁面示意圖](../images/ui/notification-settings.png)
+
+> 💻 **互動式示範**: [點擊查看完整UI示範頁面](../images/ui/ui-mockups.html#notifications)
 
 **設計要點：**
 - 使用分類標籤組織不同類型通知
