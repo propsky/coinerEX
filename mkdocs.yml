@@ -16,6 +16,10 @@ nav:
       - development/cloud-development.md
       - technical/telegram-ui-design.md
       - development/project-roadmap.md
+  - MVP開發:
+      - development/mvp-specification.md
+      - development/mvp-todo-checklist.md
+      - development/mvp-project-management.md
 
 # Theme
 theme:
