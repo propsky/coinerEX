@@ -1,34 +1,35 @@
 site_name: 兌幣機雲服務系統專案
 site_description: 兌幣機系統從LINE遷移至Telegram的完整解決方案
 site_author: 兌幣機開發團隊
-site_url: https://yourusername.github.io/coinerEX
+site_url: https://propsky.github.io/coinerEX
 
 # Repository
-repo_name: yourusername/coinerEX
-repo_url: https://github.com/yourusername/coinerEX
+repo_name: propsky/coinerEX
+repo_url: https://github.com/propsky/coinerEX
 
 # Navigation
 nav:
-  - 專案首頁: README.md
+  - 專案首頁: index.md
   - 專案文件:
-    - 概述: 01-專案文件/README.md
-    - 系統規劃書: 01-專案文件/系統規劃書.md
-    - Claude 開發指引: 01-專案文件/CLAUDE.md
+    - 概述: project/README.md
+    - 系統規劃書: project/system-planning.md
+    - Claude 開發指引: project/claude-guide.md
   - 業務分析:
-    - 概述: 02-業務分析/README.md
-    - 商業模式分析: 02-業務分析/商業模式分析.md
-    - 最小化成本分析: 02-業務分析/最小化成本分析.md
-    - 續約成本分析: 02-業務分析/續約成本分析.md
-    - 報價單設計材料: 02-業務分析/報價單設計材料.md
+    - 概述: business/README.md
+    - 商業模式分析: business/business-model.md
+    - 最小化成本分析: business/cost-analysis.md
+    - 續約成本分析: business/renewal-analysis.md
+    - 報價單設計材料: business/pricing-guide.md
   - 技術規劃:
-    - 概述: 03-技術規劃/README.md
-    - 資料庫架構設計: 03-技術規劃/資料庫架構設計.md
+    - 概述: technical/README.md
+    - 資料庫架構設計: technical/database-design.md
   - 開發文件:
-    - 概述: 04-開發文件/README.md
-    - 雲服務開發工作清單: 04-開發文件/雲服務開發工作清單.md
-    - IPC程式開發工作清單: 04-開發文件/IPC程式開發工作清單.md
+    - 概述: development/README.md
+    - 雲服務開發工作清單: development/cloud-development.md
+    - IPC程式開發工作清單: development/ipc-development.md
   - 原始資料:
-    - 概述: 05-原始資料/README.md
+    - 概述: resources/README.md
+  - 部署指南: deployment-guide.md
 
 # Theme
 theme:
