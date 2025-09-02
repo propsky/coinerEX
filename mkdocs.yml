@@ -10,28 +10,16 @@ repo_url: https://github.com/propsky/coinerEX
 # Navigation
 nav:
   - 專案首頁: index.md
-  - 專案文件:
-    - 概述: project/README.md
-    - 系統規劃書: project/system-planning.md
-    - 系統功能說明: project/system-features.md
-    - 轉移升級流程表: project/migration-process.md
-    - Claude 開發指引: project/claude-guide.md
   - 業務分析:
     - 概述: business/README.md
-    - 商業模式分析: business/business-model.md
     - 最小化成本分析: business/cost-analysis.md
-    - 續約成本分析: business/renewal-analysis.md
     - 報價單設計材料: business/pricing-guide.md
+    - 客戶升級完整指南: business/customer-upgrade-guide.md
   - 技術規劃:
     - 概述: technical/README.md
     - 資料庫架構設計: technical/database-design.md
-  - 開發文件:
-    - 概述: development/README.md
-    - 雲服務開發工作清單: development/cloud-development.md
+    - 兌幣機雲服務開發工作清單: development/cloud-development.md
     - IPC程式開發工作清單: development/ipc-development.md
-  - 原始資料:
-    - 概述: resources/README.md
-  - 部署指南: deployment-guide.md
 
 # Theme
 theme:
@@ -87,8 +75,8 @@ markdown_extensions:
   - attr_list
   - md_in_html
   - pymdownx.emoji:
-      emoji_index: !!python/name:materialx.emoji.twemoji
-      emoji_generator: !!python/name:materialx.emoji.to_svg
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
   - pymdownx.highlight:
       anchor_linenums: true
       line_spans: __span
