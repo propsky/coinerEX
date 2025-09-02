@@ -13,6 +13,8 @@ nav:
   - 專案文件:
     - 概述: project/README.md
     - 系統規劃書: project/system-planning.md
+    - 系統功能說明: project/system-features.md
+    - 轉移升級流程表: project/migration-process.md
     - Claude 開發指引: project/claude-guide.md
   - 業務分析:
     - 概述: business/README.md
