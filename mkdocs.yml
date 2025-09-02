@@ -9,17 +9,13 @@ repo_url: https://github.com/propsky/coinerEX
 
 # Navigation
 nav:
-  - 專案首頁: index.md
   - 業務分析:
-    - 概述: business/README.md
-    - 最小化成本分析: business/cost-analysis.md
-    - 報價單設計材料: business/pricing-guide.md
-    - 客戶升級完整指南: business/customer-upgrade-guide.md
+      - business/pricing-guide.md
+      - business/customer-upgrade-guide.md
   - 技術規劃:
-    - 概述: technical/README.md
-    - 資料庫架構設計: technical/database-design.md
-    - 兌幣機雲服務開發工作清單: development/cloud-development.md
-    - IPC程式開發工作清單: development/ipc-development.md
+      - development/cloud-development.md
+      - technical/telegram-ui-design.md
+      - development/project-roadmap.md
 
 # Theme
 theme:
