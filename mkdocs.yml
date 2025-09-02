@@ -1,0 +1,111 @@
+site_name: 兌幣機雲服務系統專案
+site_description: 兌幣機系統從LINE遷移至Telegram的完整解決方案
+site_author: 兌幣機開發團隊
+site_url: https://yourusername.github.io/coinerEX
+
+# Repository
+repo_name: yourusername/coinerEX
+repo_url: https://github.com/yourusername/coinerEX
+
+# Navigation
+nav:
+  - 專案首頁: README.md
+  - 專案文件:
+    - 概述: 01-專案文件/README.md
+    - 系統規劃書: 01-專案文件/系統規劃書.md
+    - Claude 開發指引: 01-專案文件/CLAUDE.md
+  - 業務分析:
+    - 概述: 02-業務分析/README.md
+    - 商業模式分析: 02-業務分析/商業模式分析.md
+    - 最小化成本分析: 02-業務分析/最小化成本分析.md
+    - 續約成本分析: 02-業務分析/續約成本分析.md
+    - 報價單設計材料: 02-業務分析/報價單設計材料.md
+  - 技術規劃:
+    - 概述: 03-技術規劃/README.md
+    - 資料庫架構設計: 03-技術規劃/資料庫架構設計.md
+  - 開發文件:
+    - 概述: 04-開發文件/README.md
+    - 雲服務開發工作清單: 04-開發文件/雲服務開發工作清單.md
+    - IPC程式開發工作清單: 04-開發文件/IPC程式開發工作清單.md
+  - 原始資料:
+    - 概述: 05-原始資料/README.md
+
+# Theme
+theme:
+  name: material
+  language: zh-TW
+  palette:
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/brightness-7
+        name: 切換至深色模式
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/brightness-4
+        name: 切換至淺色模式
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.path
+    - navigation.top
+    - search.highlight
+    - search.share
+    - toc.follow
+    - content.code.copy
+    - content.code.annotate
+
+# Plugins
+plugins:
+  - search:
+      lang: zh
+  - minify:
+      minify_html: true
+
+# Markdown extensions
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true
+  - attr_list
+  - md_in_html
+  - pymdownx.emoji:
+      emoji_index: !!python/name:materialx.emoji.twemoji
+      emoji_generator: !!python/name:materialx.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.arithmatex:
+      generic: true
+
+# Extra
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/yourusername/coinerEX
+  generator: false
+  
+extra_css:
+  - stylesheets/extra.css
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
