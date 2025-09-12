@@ -1,526 +1,398 @@
-# Telegram綁定功能前端UI設計規範
+# LINE Bot對話互動功能設計規範
 
 ## 📱 功能概述
 
-為兌幣機雲服務系統新增Telegram帳號綁定功能，讓用戶能夠接收即時的機台狀態推播通知。
+為兌幣機雲服務系統設計LINE Bot對話互動功能，讓用戶透過簡單的對話方式查詢機台狀態、幣量統計等資訊。**採用對話互動模式，不使用主動推播功能。**
 
-## 🔄 使用者綁定流程
+## 🔄 LINE Bot對話互動流程
 
 ```mermaid
 graph TD
-    A[用戶登入系統] --> B[進入個人設定]
-    B --> C{檢查綁定狀態}
-    C -->|未綁定| D[顯示綁定引導]
-    C -->|已綁定| E[顯示管理介面]
+    A[用戶加入LINE Bot好友] --> B[自動顯示歡迎選單]
+    B --> C[用戶選擇功能]
     
-    D --> F[點擊開始綁定]
-    F --> G[生成驗證碼]
-    G --> H[引導加入Bot]
-    H --> I[用戶發送驗證碼]
-    I --> J[系統驗證]
-    J --> K[綁定成功]
-    K --> L[設定通知偏好]
+    C --> D[今日幣量查詢]
+    C --> E[昨日幣量查詢]  
+    C --> F[營業狀態查詢]
+    C --> G[特定日期查詢]
+    C --> H[功能說明]
     
-    E --> M[修改通知設定]
-    E --> N[解除綁定]
-```
-
-## 🎨 頁面設計規範
-
-### 1. 個人設定頁面 (`/user/settings`)
-
-#### 頁面結構
-```
-📍 導航路徑：首頁 > 個人中心 > 帳號設定
-
-🎯 功能目標：
-- 顯示Telegram綁定狀態
-- 提供綁定/解綁入口
-- 快速存取通知設定
-```
-
-#### UI設計說明
-
-> 💻 **互動式示範**: [點擊查看完整UI示範頁面](../images/ui/ui-mockups.html#settings)
-
-**設計要點：**
-- 採用卡片式設計，清楚區分不同設定區塊
-- 使用綠色✅圖示表示已綁定狀態
-- 使用橘色○圖示表示未綁定狀態
-- 主要按鈕採用品牌色，次要按鈕使用灰色調
-
-**HTML結構建議：**
-```html
-<div class="settings-container">
-    <div class="settings-card">
-        <h3 class="card-title">
-            <i class="icon-bell"></i> 通知設定
-        </h3>
-        
-        <!-- Telegram區塊 -->
-        <div class="notification-item">
-            <div class="item-info">
-                <span class="service-icon">📱</span>
-                <div class="service-details">
-                    <h4>Telegram 通知</h4>
-                    <p class="service-desc">即時接收機台狀態推播</p>
-                </div>
-            </div>
-            
-            <div class="item-status" v-if="!telegramBound">
-                <span class="status unbound">○ 未綁定</span>
-                <button class="btn btn-primary" @click="startBinding">
-                    開始綁定
-                </button>
-            </div>
-            
-            <div class="item-status" v-else>
-                <span class="status bound">✅ 已綁定</span>
-                <span class="username">@{{ telegramUsername }}</span>
-                <div class="action-buttons">
-                    <button class="btn btn-secondary" @click="openSettings">
-                        通知設定
-                    </button>
-                    <button class="btn btn-outline" @click="unbind">
-                        解除綁定
-                    </button>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Email區塊 -->
-        <div class="notification-item">
-            <div class="item-info">
-                <span class="service-icon">📧</span>
-                <div class="service-details">
-                    <h4>Email 通知</h4>
-                    <p class="service-desc">重要事件郵件提醒</p>
-                </div>
-            </div>
-            <div class="item-status">
-                <span class="status bound">✅ 已設定</span>
-                <span class="email">{{ userEmail }}</span>
-                <button class="btn btn-secondary">修改設定</button>
-            </div>
-        </div>
-    </div>
-</div>
-```
-
-### 2. Telegram綁定引導頁面 (`/user/telegram-binding`)
-
-#### 頁面結構
-```
-📍 導航路徑：個人設定 > 開始綁定
-
-🎯 功能目標：
-- 引導用戶完成綁定流程
-- 提供清晰的操作步驟
-- 即時顯示綁定狀態
-```
-
-#### UI設計說明
-
-> 💻 **互動式示範**: [點擊查看完整UI示範頁面](../images/ui/ui-mockups.html#binding)
-
-**設計要點：**
-- 採用步驟式引導設計
-- 重要資訊使用高亮顯示
-- 提供一鍵複製驗證碼功能
-- 倒數計時器顯示驗證碼有效期
-
-**HTML結構建議：**
-```html
-<div class="binding-wizard">
-    <div class="wizard-header">
-        <h2>📱 綁定 Telegram 帳號</h2>
-        <p class="desc">完成綁定後，您將可以即時收到機台狀態通知</p>
-    </div>
+    D --> I[顯示今日統計+快速選項]
+    E --> J[顯示昨日統計+快速選項]
+    F --> K[顯示機台狀態+快速選項]
+    G --> L[引導輸入日期格式]
+    H --> M[顯示操作說明]
     
-    <div class="wizard-steps">
-        <!-- 步驟1 -->
-        <div class="step-item">
-            <div class="step-number">1</div>
-            <div class="step-content">
-                <h3>🤖 加入我們的 Bot</h3>
-                <p>點擊下方按鈕加入 CoinChanger 通知機器人：</p>
-                <a :href="botUrl" target="_blank" class="btn-telegram">
-                    <i class="telegram-icon"></i>
-                    加入 CoinChanger Bot
-                </a>
-            </div>
-        </div>
-        
-        <!-- 步驟2 -->
-        <div class="step-item">
-            <div class="step-number">2</div>
-            <div class="step-content">
-                <h3>📝 發送綁定驗證碼</h3>
-                <p>在 Telegram 中發送以下驗證碼給機器人：</p>
-                
-                <div class="verification-box">
-                    <div class="code-display">
-                        <span class="code">{{ verificationCode }}</span>
-                        <button @click="copyCode" class="btn-copy">
-                            <i class="icon-copy"></i> 複製
-                        </button>
-                    </div>
-                    <div class="code-info">
-                        <span class="timer">⏱️ 有效期：{{ remainingTime }}分鐘</span>
-                        <span class="status">{{ bindingStatusText }}</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="wizard-actions">
-        <button @click="regenerateCode" class="btn btn-outline" :disabled="isBinding">
-            重新生成驗證碼
-        </button>
-        <button @click="checkBinding" class="btn btn-primary" :disabled="!codeGenerated">
-            <i class="icon-refresh" v-if="isChecking"></i>
-            完成綁定
-        </button>
-    </div>
-    
-    <!-- 綁定成功提示 -->
-    <div v-if="bindingSuccess" class="success-message">
-        <i class="icon-check-circle"></i>
-        <h3>綁定成功！</h3>
-        <p>現在您可以設定通知偏好</p>
-        <button @click="goToNotificationSettings" class="btn btn-primary">
-            設定通知偏好
-        </button>
-    </div>
-</div>
+    I --> N[用戶可選擇其他功能]
+    J --> N
+    K --> N
+    L --> O[用戶輸入日期]
+    O --> P[顯示指定日期統計]
+    M --> N
+    P --> N
+    N --> C
 ```
 
-### 3. 通知偏好設定頁面 (`/user/notification-settings`)
+## 💬 LINE Bot對話介面設計
 
-#### 頁面結構
+### 1. 歡迎訊息與主選單
+
+#### 觸發時機
+- 用戶首次加入LINE Bot好友
+- 用戶發送「選單」、「menu」等關鍵字
+
+#### 訊息設計
 ```
-📍 導航路徑：個人設定 > 通知設定 或 綁定完成 > 設定通知偏好
+🎰 歡迎使用 IOTCoinChanger 查詢系統！
 
-🎯 功能目標：
-- 詳細的通知類型設定
-- 通知時段控制
-- 測試通知功能
-```
+透過簡單的對話，您可以隨時查詢：
+📊 機台幣量統計
+🏪 營業狀態監控  
+📅 歷史資料查詢
 
-#### UI設計說明
-
-> 💻 **互動式示範**: [點擊查看完整UI示範頁面](../images/ui/ui-mockups.html#notifications)
-
-**設計要點：**
-- 使用分類標籤組織不同類型通知
-- 採用切換按鈕(Toggle)設計
-- 時間選擇器使用直覺的UI元件
-- 提供預覽功能讓用戶測試通知
-
-**HTML結構建議：**
-```html
-<div class="notification-settings">
-    <div class="settings-header">
-        <h2>🔔 通知偏好設定</h2>
-        <p class="desc">自訂您想要接收的通知類型和時段</p>
-    </div>
-    
-    <form @submit.prevent="saveSettings" class="settings-form">
-        <!-- 異常通知 -->
-        <div class="settings-group">
-            <h3 class="group-title">
-                <i class="icon-alert"></i> 異常通知
-            </h3>
-            <div class="setting-item">
-                <label class="setting-label">
-                    <input type="checkbox" v-model="settings.machineOffline" class="toggle">
-                    <span class="label-text">機台離線通知</span>
-                    <span class="label-desc">當機台失去網路連線時通知</span>
-                </label>
-            </div>
-            <div class="setting-item">
-                <label class="setting-label">
-                    <input type="checkbox" v-model="settings.hardwareFailure" class="toggle">
-                    <span class="label-text">硬體故障通知</span>
-                    <span class="label-desc">機台硬體出現問題時通知</span>
-                </label>
-            </div>
-            <div class="setting-item">
-                <label class="setting-label">
-                    <input type="checkbox" v-model="settings.networkError" class="toggle">
-                    <span class="label-text">網路異常通知</span>
-                    <span class="label-desc">網路連線不穩定時通知</span>
-                </label>
-            </div>
-        </div>
-        
-        <!-- 交易通知 -->
-        <div class="settings-group">
-            <h3 class="group-title">
-                <i class="icon-dollar"></i> 交易通知
-            </h3>
-            <div class="setting-item">
-                <label class="setting-label">
-                    <input type="checkbox" v-model="settings.largeTransaction" class="toggle">
-                    <span class="label-text">大額交易通知</span>
-                    <span class="label-desc">單筆交易超過 500 元時通知</span>
-                </label>
-            </div>
-            <div class="setting-item">
-                <label class="setting-label">
-                    <input type="checkbox" v-model="settings.allTransactions" class="toggle">
-                    <span class="label-text">所有交易通知</span>
-                    <span class="label-desc">每筆交易都發送通知（不建議）</span>
-                </label>
-            </div>
-            <div class="setting-item">
-                <label class="setting-label">
-                    <input type="checkbox" v-model="settings.dailySummary" class="toggle">
-                    <span class="label-text">每日交易匯總</span>
-                    <span class="label-desc">每日營業結束後發送交易統計</span>
-                </label>
-            </div>
-        </div>
-        
-        <!-- 維護通知 -->
-        <div class="settings-group">
-            <h3 class="group-title">
-                <i class="icon-wrench"></i> 維護通知
-            </h3>
-            <div class="setting-item">
-                <label class="setting-label">
-                    <input type="checkbox" v-model="settings.refillReminder" class="toggle">
-                    <span class="label-text">補幣提醒</span>
-                    <span class="label-desc">硬幣數量不足時提醒補幣</span>
-                </label>
-            </div>
-            <div class="setting-item">
-                <label class="setting-label">
-                    <input type="checkbox" v-model="settings.cleaningReminder" class="toggle">
-                    <span class="label-text">清潔提醒</span>
-                    <span class="label-desc">定期提醒清潔維護機台</span>
-                </label>
-            </div>
-        </div>
-        
-        <!-- 通知時段 -->
-        <div class="settings-group">
-            <h3 class="group-title">
-                <i class="icon-clock"></i> 通知時段
-            </h3>
-            <div class="time-settings">
-                <div class="time-range">
-                    <label>營業時間：</label>
-                    <input type="time" v-model="settings.businessHoursStart" class="time-input">
-                    <span class="separator">至</span>
-                    <input type="time" v-model="settings.businessHoursEnd" class="time-input">
-                </div>
-                <div class="setting-item">
-                    <label class="setting-label">
-                        <input type="checkbox" v-model="settings.businessHoursOnly" class="toggle">
-                        <span class="label-text">僅在營業時間內發送通知</span>
-                        <span class="label-desc">營業時間外暫停一般通知</span>
-                    </label>
-                </div>
-                <div class="setting-item">
-                    <label class="setting-label">
-                        <input type="checkbox" v-model="settings.emergencyAlways" class="toggle">
-                        <span class="label-text">24小時接收緊急通知</span>
-                        <span class="label-desc">重要異常隨時通知</span>
-                    </label>
-                </div>
-            </div>
-        </div>
-        
-        <!-- 表單按鈕 -->
-        <div class="form-actions">
-            <button type="button" @click="previewNotification" class="btn btn-outline">
-                <i class="icon-eye"></i> 預覽通知
-            </button>
-            <button type="button" @click="resetToDefault" class="btn btn-ghost">
-                重設為預設
-            </button>
-            <button type="submit" class="btn btn-primary" :disabled="isSaving">
-                <i class="icon-save"></i> 
-                {{ isSaving ? '儲存中...' : '儲存設定' }}
-            </button>
-        </div>
-    </form>
-</div>
+請點擊下方按鈕開始使用：
 ```
 
-## 📱 響應式設計考量
+#### 快速回復按鈕
+- 📊 今日幣量
+- 📊 昨日幣量  
+- 🏪 營業狀態
+- 📅 查詢日期
+- ❓ 功能說明
 
-### 行動裝置適配
-```css
-/* 手機版設計調整 */
-@media (max-width: 768px) {
-    .settings-card {
-        margin: 10px;
-        padding: 15px;
-    }
-    
-    .notification-item {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-    
-    .action-buttons {
-        margin-top: 10px;
-        width: 100%;
-    }
-    
-    .btn {
-        width: 100%;
-        margin-bottom: 8px;
-    }
-}
+### 2. 今日幣量查詢回應
+
+#### 觸發關鍵字
+`今日幣量`、`今天`、`today`、點擊「今日幣量」按鈕
+
+#### 回應訊息格式
+```
+📊 今日幣量查詢結果
+─────────────────
+🗓️ 日期: 2024-01-15
+💰 總幣量: 15,600元
+
+🎰 機台詳情：
+• 機台01: 3,200元 ✅ 正常
+• 機台02: 4,100元 ✅ 正常  
+• 機台03: 2,800元 ❌ 故障
+• 機台04: 5,500元 ✅ 正常
+
+─────────────────
+📈 與昨日對比: +2,300元 (↑17.3%)
+⏰ 更新時間: 16:30
+
+💡 輸入「選單」查看其他功能
 ```
 
-### 平板版設計
-```css
-/* 平板版設計調整 */
-@media (min-width: 769px) and (max-width: 1024px) {
-    .settings-container {
-        max-width: 800px;
-        margin: 0 auto;
-    }
-    
-    .wizard-steps {
-        padding: 0 20px;
-    }
-}
+#### 後續快速選項
+- 📊 昨日幣量  
+- 🏪 營業狀態
+- 📅 查詢其他日期
+- 🔄 重新查詢
+
+### 3. 昨日幣量查詢回應
+
+#### 觸發關鍵字
+`昨日幣量`、`昨天`、`yesterday`、點擊「昨日幣量」按鈕
+
+#### 回應訊息格式
+```
+📊 昨日幣量查詢結果
+─────────────────
+🗓️ 日期: 2024-01-14 (週日)
+💰 總幣量: 13,300元
+
+🎰 機台詳情：
+• 機台01: 2,800元 ✅ 正常
+• 機台02: 3,900元 ✅ 正常
+• 機台03: 2,600元 ✅ 正常  
+• 機台04: 4,000元 ✅ 正常
+
+─────────────────
+📈 與前日對比: +1,100元 (↑9.0%)
+📊 週日表現良好
+⏰ 統計時間: 23:59
+
+💡 輸入「選單」查看其他功能
 ```
 
-## 🎨 樣式規範
+#### 後續快速選項
+- 📊 今日幣量
+- 🏪 營業狀態  
+- 📅 查詢其他日期
+- 🔄 重新查詢
 
-### 色彩配置
-```css
-:root {
-    /* 主要品牌色 */
-    --primary-color: #007bff;
-    --primary-hover: #0056b3;
-    
-    /* 狀態色彩 */
-    --success-color: #28a745;
-    --warning-color: #ffc107;
-    --danger-color: #dc3545;
-    
-    /* Telegram品牌色 */
-    --telegram-color: #0088cc;
-    --telegram-hover: #006bb3;
-    
-    /* 背景色 */
-    --bg-light: #f8f9fa;
-    --bg-card: #ffffff;
-    --border-color: #dee2e6;
-}
+### 4. 營業狀態查詢回應
+
+#### 觸發關鍵字
+`營業狀態`、`狀態`、`status`、`機台狀態`、點擊「營業狀態」按鈕
+
+#### 回應訊息格式
+```
+🏪 機台營業狀態總覽
+─────────────────
+⏰ 查詢時間: 2024-01-15 16:30
+
+🎰 機台狀態詳情：
+• 機台01: ✅ 正常營業 (運行中)
+• 機台02: ✅ 正常營業 (運行中)
+• 機台03: ❌ 故障停機 (硬體異常)  
+• 機台04: ✅ 正常營業 (運行中)
+
+─────────────────
+📊 統計摘要：
+✅ 正常機台: 3台 (75%)
+❌ 故障機台: 1台 (25%)  
+🔋 總服務能力: 75%
+
+💡 故障機台已通知維修
+💡 輸入「選單」查看其他功能
 ```
 
-### 按鈕樣式
-```css
-.btn {
-    padding: 8px 16px;
-    border-radius: 4px;
-    font-weight: 500;
-    text-decoration: none;
-    transition: all 0.2s ease;
-    border: none;
-    cursor: pointer;
-}
+#### 後續快速選項
+- 📊 今日幣量
+- 📊 昨日幣量
+- 📅 查詢其他日期  
+- 🔄 重新查詢
 
-.btn-primary {
-    background: var(--primary-color);
-    color: white;
-}
+### 5. 特定日期查詢流程
 
-.btn-telegram {
-    background: var(--telegram-color);
-    color: white;
-}
+#### 觸發關鍵字
+`查詢特定日期`、`查詢日期`、`日期查詢`、點擊「查詢日期」按鈕
 
-.btn-outline {
-    background: transparent;
-    border: 1px solid var(--border-color);
-    color: var(--primary-color);
-}
+#### 第一步：引導輸入格式
+```
+📅 特定日期幣量查詢
+
+請輸入您要查詢的日期：
+格式: YYYY-MM-DD
+例如: 2024-01-10
+
+或選擇快速查詢：
 ```
 
-## 🔧 JavaScript互動邏輯
+#### 快速選項
+- 昨日 (2024-01-14)
+- 前日 (2024-01-13)  
+- 一週前 (2024-01-08)
+- 返回選單
 
-### Vue.js組件範例
+#### 第二步：用戶輸入日期後回應
+```
+📊 2024-01-10 幣量查詢結果
+─────────────────
+🗓️ 日期: 2024-01-10 (週三)
+💰 總幣量: 11,850元
+
+🎰 機台詳情：
+• 機台01: 2,400元 ✅ 正常
+• 機台02: 3,200元 ✅ 正常
+• 機台03: 2,950元 ✅ 正常
+• 機台04: 3,300元 ✅ 正常  
+
+─────────────────
+📈 與前日對比: +850元 (↑7.7%)
+📊 週三表現穩定
+⏰ 統計時間: 23:59
+
+💡 輸入其他日期或「選單」繼續查詢
+```
+
+### 6. 功能說明頁面
+
+#### 觸發關鍵字
+`功能說明`、`說明`、`help`、`指令`、點擊「功能說明」按鈕
+
+#### 回應訊息
+```
+❓ IOTCoinChanger Bot 功能說明
+─────────────────
+
+💬 對話指令：
+• 輸入「今日幣量」或「今天」→ 查詢當日統計
+• 輸入「昨日幣量」或「昨天」→ 查詢昨日統計  
+• 輸入「營業狀態」或「狀態」→ 查詢機台狀態
+• 輸入日期 (如: 2024-01-10) → 查詢指定日期
+• 輸入「選單」→ 顯示功能選單
+
+📱 快速按鈕：
+每次查詢後都會提供相關快速按鈕，
+點擊即可快速切換到其他功能
+
+⏰ 查詢時間：
+24小時全天候可查詢，資料每5分鐘更新
+
+💡 小貼士：
+- 支援自然語言，可直接說「今天收了多少」
+- 可隨時輸入「選單」回到主功能
+- 查詢結果會顯示與前日對比
+- 故障機台會特別標示❌
+
+有其他問題請輸入「選單」選擇功能
+```
+
+## 🔧 技術實作規範
+
+### LINE Bot Webhook 處理邏輯
+
 ```javascript
-export default {
-    name: 'TelegramBinding',
-    data() {
-        return {
-            telegramBound: false,
-            telegramUsername: '',
-            verificationCode: '',
-            remainingTime: 10,
-            isBinding: false,
-            bindingSuccess: false,
-            timer: null
-        }
-    },
+// LINE Bot 訊息處理核心邏輯
+const handleLineMessage = async (event) => {
+    const userMessage = event.message.text;
+    const userId = event.source.userId;
     
-    methods: {
-        async startBinding() {
-            try {
-                const response = await this.$api.post('/api/telegram/generate-code');
-                this.verificationCode = response.data.code;
-                this.startTimer();
-                this.$router.push('/user/telegram-binding');
-            } catch (error) {
-                this.$toast.error('生成驗證碼失敗');
-            }
-        },
-        
-        async checkBinding() {
-            this.isBinding = true;
-            try {
-                const response = await this.$api.get('/api/telegram/status');
-                if (response.data.bound) {
-                    this.bindingSuccess = true;
-                    this.telegramBound = true;
-                    this.telegramUsername = response.data.username;
-                }
-            } catch (error) {
-                this.$toast.error('綁定檢查失敗');
-            } finally {
-                this.isBinding = false;
-            }
-        },
-        
-        copyCode() {
-            navigator.clipboard.writeText(this.verificationCode);
-            this.$toast.success('驗證碼已複製');
-        },
-        
-        startTimer() {
-            this.timer = setInterval(() => {
-                if (this.remainingTime > 0) {
-                    this.remainingTime--;
-                } else {
-                    clearInterval(this.timer);
-                }
-            }, 60000);
-        }
+    // 關鍵字匹配與處理
+    if (isKeywordMatch(userMessage, ['今日幣量', '今天', 'today'])) {
+        return await getTodayCoinsResponse();
     }
-}
+    
+    if (isKeywordMatch(userMessage, ['昨日幣量', '昨天', 'yesterday'])) {
+        return await getYesterdayCoinsResponse();
+    }
+    
+    if (isKeywordMatch(userMessage, ['營業狀態', '狀態', 'status'])) {
+        return await getBusinessStatusResponse();
+    }
+    
+    if (isKeywordMatch(userMessage, ['選單', 'menu', '功能'])) {
+        return getMainMenuResponse();
+    }
+    
+    if (isKeywordMatch(userMessage, ['功能說明', 'help', '說明'])) {
+        return getFunctionHelpResponse();
+    }
+    
+    // 日期格式檢查
+    if (isValidDateFormat(userMessage)) {
+        return await getDateSpecificResponse(userMessage);
+    }
+    
+    // 自然語言處理
+    if (containsNaturalKeywords(userMessage)) {
+        return await handleNaturalLanguage(userMessage);
+    }
+    
+    // 預設回應
+    return getDefaultResponse();
+};
+
+// 輔助函數
+const isKeywordMatch = (userMessage, keywords) => {
+    return keywords.some(keyword => 
+        userMessage.toLowerCase().includes(keyword.toLowerCase())
+    );
+};
+
+const isValidDateFormat = (message) => {
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    return dateRegex.test(message.trim());
+};
+
+// 快速回復按鈕生成
+const createQuickReply = (items) => {
+    return {
+        type: "text",
+        text: "請選擇功能：",
+        quickReply: {
+            items: items.map(item => ({
+                type: "action",
+                action: {
+                    type: "message",
+                    label: item.label,
+                    text: item.text
+                }
+            }))
+        }
+    };
+};
 ```
 
-## 📊 用戶體驗指標
+### 訊息回應模板
 
-### 關鍵操作流程時間
-- **綁定流程完成時間**：目標 < 3分鐘
-- **設定修改時間**：目標 < 1分鐘  
-- **頁面載入時間**：目標 < 2秒
+```javascript
+// 主選單回應模板
+const getMainMenuResponse = () => {
+    const quickReplyItems = [
+        { label: "📊 今日幣量", text: "今日幣量" },
+        { label: "📊 昨日幣量", text: "昨日幣量" },
+        { label: "🏪 營業狀態", text: "營業狀態" },
+        { label: "📅 查詢日期", text: "查詢特定日期" },
+        { label: "❓ 功能說明", text: "功能說明" }
+    ];
+    
+    return {
+        type: "text",
+        text: "🎰 IOTCoinChanger 查詢系統\n請選擇查詢功能：",
+        quickReply: createQuickReply(quickReplyItems).quickReply
+    };
+};
 
-### 易用性要求
-- **操作步驟**：最多3步完成綁定
-- **錯誤處理**：清楚的錯誤提示和恢復建議
-- **回饋機制**：即時的操作狀態反饋
+// 今日幣量回應模板
+const getTodayCoinsResponse = async () => {
+    const todayStats = await fetchTodayStatistics();
+    
+    const quickReplyItems = [
+        { label: "📊 昨日幣量", text: "昨日幣量" },
+        { label: "🏪 營業狀態", text: "營業狀態" },
+        { label: "📅 查詢日期", text: "查詢特定日期" },
+        { label: "🔄 重新查詢", text: "今日幣量" }
+    ];
+    
+    return {
+        type: "text",
+        text: formatTodayStatsMessage(todayStats),
+        quickReply: createQuickReply(quickReplyItems).quickReply
+    };
+};
+```
 
-這個UI設計確保了用戶能夠輕鬆完成Telegram綁定，並靈活控制通知偏好，提升整體使用體驗。
+### 資料格式化函數
+
+```javascript
+const formatTodayStatsMessage = (stats) => {
+    const machines = stats.machines.map(machine => 
+        `• ${machine.name}: ${machine.amount.toLocaleString()}元 ${machine.status === 'online' ? '✅' : '❌'} ${machine.statusText}`
+    ).join('\n');
+    
+    const comparison = stats.comparison > 0 
+        ? `+${stats.comparison.toLocaleString()}元 (↑${stats.comparisonPercent}%)`
+        : `${stats.comparison.toLocaleString()}元 (↓${Math.abs(stats.comparisonPercent)}%)`;
+    
+    return `📊 今日幣量查詢結果
+─────────────────
+🗓️ 日期: ${stats.date}
+💰 總幣量: ${stats.totalAmount.toLocaleString()}元
+
+🎰 機台詳情：
+${machines}
+
+─────────────────
+📈 與昨日對比: ${comparison}
+⏰ 更新時間: ${stats.updateTime}
+
+💡 輸入「選單」查看其他功能`;
+};
+```
+
+## 📊 用戶體驗設計重點
+
+### 對話流程設計原則
+- **簡潔明瞭**: 每個回應都包含完整必要資訊
+- **引導性**: 提供明確的下一步操作選項
+- **一致性**: 所有訊息格式統一，易於理解
+- **即時性**: 資料更新時間清楚標示
+
+### 錯誤處理機制
+- **無效日期**: 提供正確格式範例
+- **無資料期間**: 解釋原因並提供建議查詢日期  
+- **系統異常**: 友善提示並建議稍後重試
+- **未知指令**: 引導回到主選單
+
+### 用戶習慣考量  
+- **保持LINE使用習慣**: 快速回復按鈕+對話輸入
+- **支援自然語言**: 「今天收了多少」也能識別
+- **記住查詢脈絡**: 相關功能的快速切換
+- **24小時可用**: 隨時可查詢歷史資料
+
+這個設計完全符合MVP需求，移除了主動推播功能，專注於用戶主動查詢的對話互動體驗。

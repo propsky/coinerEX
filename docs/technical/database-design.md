@@ -12,7 +12,7 @@ CREATE TABLE users (
     password_hash VARCHAR(255) NOT NULL,
     full_name VARCHAR(100),
     phone VARCHAR(20),
-    telegram_chat_id BIGINT UNIQUE,
+    line_user_id VARCHAR(100) UNIQUE, -- LINE Bot User ID
     role VARCHAR(20) DEFAULT 'user', -- 'admin', 'user', 'operator'
     company_name VARCHAR(100),
     is_active BOOLEAN DEFAULT true,
@@ -23,7 +23,7 @@ CREATE TABLE users (
 
 -- 索引
 CREATE INDEX idx_users_username ON users(username);
-CREATE INDEX idx_users_telegram_chat_id ON users(telegram_chat_id);
+CREATE INDEX idx_users_line_user_id ON users(line_user_id);
 CREATE INDEX idx_users_role ON users(role);
 ```
 
@@ -225,11 +225,11 @@ CREATE TABLE machine_settings (
     high_temp_threshold DECIMAL(5,2) DEFAULT 40.0, -- 高溫警告
     low_temp_threshold DECIMAL(5,2) DEFAULT 5.0, -- 低溫警告
     
-    -- 通知設定
-    enable_coin_alert BOOLEAN DEFAULT true, -- 兌幣通知
-    enable_error_alert BOOLEAN DEFAULT true, -- 故障通知
-    enable_maintenance_alert BOOLEAN DEFAULT true, -- 維護通知
-    alert_frequency INTEGER DEFAULT 60, -- 通知頻率(分鐘)
+    -- LINE Bot查詢設定
+    enable_stats_query BOOLEAN DEFAULT true, -- 啟用統計查詢
+    enable_status_query BOOLEAN DEFAULT true, -- 啟用狀態查詢
+    enable_historical_query BOOLEAN DEFAULT true, -- 啟用歷史查詢
+    query_rate_limit INTEGER DEFAULT 20, -- 查詢頻率限制(次/小時)
     
     -- 營業時間
     business_hours_start TIME DEFAULT '08:00:00',
@@ -248,43 +248,42 @@ CREATE TABLE machine_settings (
 CREATE INDEX idx_machine_settings_machine ON machine_settings(machine_id);
 ```
 
-### 8. 推播通知記錄表 (notifications)
+### 8. LINE Bot查詢記錄表 (linebot_queries)
 ```sql
-CREATE TABLE notifications (
+CREATE TABLE linebot_queries (
     id SERIAL PRIMARY KEY,
-    machine_id INTEGER REFERENCES machines(id) ON DELETE CASCADE,
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
     
-    -- 通知內容
-    notification_type VARCHAR(30) NOT NULL, -- 'error', 'coin_exchange', 'refill', 'maintenance'
-    title VARCHAR(200) NOT NULL,
-    content TEXT NOT NULL,
+    -- 查詢內容
+    query_type VARCHAR(30) NOT NULL, -- 'today_stats', 'yesterday_stats', 'business_status', 'date_query'
+    query_text TEXT NOT NULL, -- 用戶原始查詢文字
+    query_date DATE, -- 特定日期查詢的日期
     
-    -- 推播管道
-    channel VARCHAR(20) DEFAULT 'telegram', -- 'telegram', 'email', 'sms'
+    -- 回應內容
+    response_text TEXT, -- 回應內容
+    response_data JSONB, -- 結構化回應數據
     
-    -- 發送狀態
-    status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'sent', 'failed', 'read'
-    attempts INTEGER DEFAULT 0, -- 發送嘗試次數
+    -- 處理狀態
+    status VARCHAR(20) DEFAULT 'completed', -- 'pending', 'completed', 'failed'
+    processing_time_ms INTEGER, -- 處理時間(毫秒)
     
     -- 時間記錄
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    sent_at TIMESTAMP,
-    read_at TIMESTAMP,
+    completed_at TIMESTAMP,
     
     -- 錯誤資訊
     error_message TEXT,
     
-    -- 相關資料
-    related_transaction_id INTEGER REFERENCES transactions(id),
-    related_refill_id INTEGER REFERENCES refill_records(id)
+    -- LINE Bot相關
+    line_message_id VARCHAR(100), -- LINE訊息ID
+    line_reply_token VARCHAR(255) -- LINE回覆Token
 );
 
 -- 索引
-CREATE INDEX idx_notifications_user_time ON notifications(user_id, created_at DESC);
-CREATE INDEX idx_notifications_machine_time ON notifications(machine_id, created_at DESC);
-CREATE INDEX idx_notifications_status ON notifications(status);
-CREATE INDEX idx_notifications_type ON notifications(notification_type);
+CREATE INDEX idx_linebot_queries_user_time ON linebot_queries(user_id, created_at DESC);
+CREATE INDEX idx_linebot_queries_type ON linebot_queries(query_type);
+CREATE INDEX idx_linebot_queries_date ON linebot_queries(query_date);
+CREATE INDEX idx_linebot_queries_status ON linebot_queries(status);
 ```
 
 ### 9. MQTT訊息日誌表 (mqtt_logs)
@@ -364,10 +363,9 @@ users (用戶)
 │   ├── transactions (交易記錄)
 │   ├── refill_records (補幣記錄) [operator_id → users]
 │   ├── machine_settings (系統設定)
-│   ├── notifications (推播通知) [user_id → users]
 │   ├── mqtt_logs (MQTT日誌)
 │   └── system_logs (系統日誌)
-└── notifications (推播通知) [user_id]
+└── linebot_queries (LINE Bot查詢記錄) [user_id]
 ```
 
 ## 初始化數據腳本
@@ -379,8 +377,8 @@ INSERT INTO users (username, email, password_hash, full_name, role) VALUES
 ('admin', 'admin@coinerex.tw', '$2b$12$...', '系統管理員', 'admin');
 
 -- 插入測試用戶
-INSERT INTO users (username, email, password_hash, full_name, role, company_name) VALUES
-('demo_user', 'demo@example.com', '$2b$12$...', '示範用戶', 'user', '示範公司');
+INSERT INTO users (username, email, password_hash, full_name, role, company_name, line_user_id) VALUES
+('demo_user', 'demo@example.com', '$2b$12$...', '示範用戶', 'user', '示範公司', 'U1234567890abcdef');
 ```
 
 ### 建立範例機台

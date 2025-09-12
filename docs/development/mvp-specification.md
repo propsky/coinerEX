@@ -23,14 +23,21 @@
 
 ### ✅ 核心功能 (Must Have)
 
-#### 1. LINE Bot快速回覆功能 (保留現有)
+#### 1. LINE Bot對話互動功能 (全部使用對話式查詢)
 ```
 📊 今日幣量 - 查詢當日所有機台幣量統計
 📊 昨日幣量 - 查詢昨日幣量與對比分析  
 🏪 營業狀態 - 顯示所有機台開機/故障狀態
-📅 查詢特定日期幣量 - 輸入日期查詢歷史幣量
-❓ 功能說明 - 指令使用說明
+📅 查詢特定日期幣量 - 輸入日期格式(YYYY-MM-DD)查詢歷史幣量
+⚙️ 快速選單 - 顯示功能選項按鈕
+❓ 功能說明 - 指令使用說明與操作提示
 ```
+
+**互動方式說明**:
+- 所有功能透過**文字對話**觸發，無主動推播
+- 支援**快速回復按鈕**提供便捷選擇
+- 用戶主動發送關鍵字或選擇按鈕獲取資訊
+- 24小時內可隨時查詢，無時間限制
 
 #### 2. Web管理介面 (UniApp)
 **機台狀態監控頁面** (參考現有PDF設計)
@@ -66,10 +73,11 @@
 
 ### ⭕ 次要功能 (Nice to Have)
 - 基本用戶認證 (簡化版)
-- 推播通知設定
 - 簡單的資料匯出
+- 機台狀態異常時的記錄功能
 
 ### ❌ 暫不包含 (Future Version)
+- 主動推播通知功能
 - Telegram Bot整合
 - 複雜報表分析
 - 遠端補幣功能  
@@ -200,28 +208,70 @@ GET    /api/system/health         // 系統健康檢查
 GET    /api/system/logs           // 系統日誌
 ```
 
-#### LINE Bot訊息格式
+#### LINE Bot對話互動格式
 ```javascript
-// 今日幣量回覆範例
-{
-  "type": "text",
-  "text": "📊 今日幣量查詢結果\n─────────────────\n🗓️ 日期: 2024-01-15\n💰 總幣量: 15,600元\n🎰 機台01: 3,200元 ✅\n🎰 機台02: 4,100元 ✅\n🎰 機台03: 2,800元 ❌故障\n🎰 機台04: 5,500元 ✅\n─────────────────\n⏰ 更新時間: 16:30"
-}
-
-// 快速回覆選單
+// 主選單 - 用戶輸入"選單"或加入好友時顯示
 {
   "type": "text", 
-  "text": "請選擇查詢功能：",
+  "text": "🎰 IOTCoinChanger 查詢系統\n請選擇查詢功能：",
   "quickReply": {
     "items": [
-      {"type": "action", "action": {"type": "message", "label": "今日幣量", "text": "今日幣量"}},
-      {"type": "action", "action": {"type": "message", "label": "昨日幣量", "text": "昨日幣量"}},
-      {"type": "action", "action": {"type": "message", "label": "營業狀態", "text": "營業狀態"}},
-      {"type": "action", "action": {"type": "message", "label": "查詢日期", "text": "查詢特定日期"}}
+      {"type": "action", "action": {"type": "message", "label": "📊 今日幣量", "text": "今日幣量"}},
+      {"type": "action", "action": {"type": "message", "label": "📊 昨日幣量", "text": "昨日幣量"}},
+      {"type": "action", "action": {"type": "message", "label": "🏪 營業狀態", "text": "營業狀態"}},
+      {"type": "action", "action": {"type": "message", "label": "📅 查詢日期", "text": "查詢特定日期"}},
+      {"type": "action", "action": {"type": "message", "label": "❓ 功能說明", "text": "功能說明"}}
+    ]
+  }
+}
+
+// 今日幣量回覆 - 用戶輸入"今日幣量"時回應
+{
+  "type": "text",
+  "text": "📊 今日幣量查詢結果\n─────────────────\n🗓️ 日期: 2024-01-15\n💰 總幣量: 15,600元\n🎰 機台01: 3,200元 ✅\n🎰 機台02: 4,100元 ✅\n🎰 機台03: 2,800元 ❌故障\n🎰 機台04: 5,500元 ✅\n─────────────────\n⏰ 更新時間: 16:30\n\n輸入「選單」查看其他功能",
+  "quickReply": {
+    "items": [
+      {"type": "action", "action": {"type": "message", "label": "📊 昨日幣量", "text": "昨日幣量"}},
+      {"type": "action", "action": {"type": "message", "label": "🏪 營業狀態", "text": "營業狀態"}},
+      {"type": "action", "action": {"type": "message", "label": "📅 查詢日期", "text": "查詢特定日期"}},
+      {"type": "action", "action": {"type": "message", "label": "🔄 重新查詢", "text": "今日幣量"}}
+    ]
+  }
+}
+
+// 日期查詢引導 - 用戶輸入"查詢特定日期"時回應
+{
+  "type": "text",
+  "text": "📅 請輸入要查詢的日期\n格式: YYYY-MM-DD\n例如: 2024-01-10\n\n或選擇快速查詢：",
+  "quickReply": {
+    "items": [
+      {"type": "action", "action": {"type": "message", "label": "昨日", "text": "昨日幣量"}},
+      {"type": "action", "action": {"type": "message", "label": "前日", "text": getDayText(-2)}},
+      {"type": "action", "action": {"type": "message", "label": "一週前", "text": getDayText(-7)}},
+      {"type": "action", "action": {"type": "message", "label": "返回選單", "text": "選單"}}
+    ]
+  }
+}
+
+// 營業狀態回覆 - 用戶輸入"營業狀態"時回應
+{
+  "type": "text",
+  "text": "🏪 機台營業狀態\n─────────────────\n🎰 機台01: ✅ 正常營業\n🎰 機台02: ✅ 正常營業\n🎰 機台03: ❌ 故障停機\n🎰 機台04: ✅ 正常營業\n─────────────────\n📊 正常: 3台 | 故障: 1台\n⏰ 更新時間: 16:30",
+  "quickReply": {
+    "items": [
+      {"type": "action", "action": {"type": "message", "label": "📊 今日幣量", "text": "今日幣量"}},
+      {"type": "action", "action": {"type": "message", "label": "🔄 重新查詢", "text": "營業狀態"}},
+      {"type": "action", "action": {"type": "message", "label": "返回選單", "text": "選單"}}
     ]
   }
 }
 ```
+
+**對話互動邏輯**：
+- 用戶加入好友→自動顯示主選單
+- 用戶發送關鍵字→系統回應對應資訊+快速按鈕
+- 每個回應都提供相關快速選項，方便用戶繼續查詢
+- 支援自然語言關鍵字匹配 (如："今天"、"狀態"、"選單"等)
 
 ---
 
@@ -401,11 +451,11 @@ IOTCoinChanger
 - 應對策略: 第1天即進行MQTT連線測試，提早發現問題
 - 備案方案: 準備通用MQTT解析器
 
-**2. LINE Bot API限制**
-- 風險描述: 推播頻率或訊息格式限制
-- 影響程度: 功能受限
-- 應對策略: 詳細研讀LINE Bot API文檔
-- 備案方案: 使用訊息合併與延遲發送
+**2. LINE Bot對話互動限制**
+- 風險描述: 複雜查詢邏輯或訊息格式限制
+- 影響程度: 用戶體驗受影響
+- 應對策略: 詳細研讀LINE Bot API文檔，測試各種互動方式
+- 備案方案: 簡化對話流程，使用引導式選單
 
 ### 🟡 中風險項目
 **1. 前端UI設計複雜度**
