@@ -74,15 +74,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### 技術棧
 - **前端**: HTML/CSS/JavaScript (考慮使用現有UI架構)
-- **後端**: Python (配合硬體控制需求)
-- **資料庫**: 待確認 (需支援MQTT資料格式)
-- **訊息推播**: Telegram Bot API
+- **後端**: Python FastAPI (RESTful API框架)
+- **資料庫**: MySQL 8.0+ (支援JSON資料格式)
+- **訊息互動**: LINE Bot API (對話查詢功能)
 - **硬體通訊**: MQTT協定
 - **部署**: Linode雲端服務
 
 ### 開發優先級
 1. 系統升級轉移流程 (最高優先級)
-2. Telegram推播系統整合
+2. LINE Bot對話互動系統整合
 3. 雲端管理平台功能
 4. 硬體IPC程式更新
 5. 使用者介面優化

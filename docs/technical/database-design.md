@@ -1,12 +1,12 @@
 # 兌幣機雲服務資料庫架構設計
-*基於IOTCoinChanger介面分析的資料表結構*
+*基於IOTCoinChanger介面分析的MySQL資料表結構*
 
 ## 核心資料表設計
 
 ### 1. 用戶管理表 (users)
 ```sql
 CREATE TABLE users (
-    id SERIAL PRIMARY KEY,
+    id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
     email VARCHAR(100),
     password_hash VARCHAR(255) NOT NULL,
@@ -15,10 +15,10 @@ CREATE TABLE users (
     line_user_id VARCHAR(100) UNIQUE, -- LINE Bot User ID
     role VARCHAR(20) DEFAULT 'user', -- 'admin', 'user', 'operator'
     company_name VARCHAR(100),
-    is_active BOOLEAN DEFAULT true,
-    last_login_at TIMESTAMP,
+    is_active BOOLEAN DEFAULT TRUE,
+    last_login_at TIMESTAMP NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 -- 索引
@@ -30,11 +30,12 @@ CREATE INDEX idx_users_role ON users(role);
 ### 2. 機台管理表 (machines)
 ```sql
 CREATE TABLE machines (
-    id SERIAL PRIMARY KEY,
+    id INT AUTO_INCREMENT PRIMARY KEY,
     machine_code VARCHAR(20) UNIQUE NOT NULL, -- 如：MC001
     machine_name VARCHAR(100) NOT NULL, -- 如：店名01
     location VARCHAR(200), -- 機台放置地點
-    owner_id INTEGER REFERENCES users(id),
+    owner_id INT,
+    FOREIGN KEY (owner_id) REFERENCES users(id),
     
     -- 硬體資訊
     ipc_serial VARCHAR(50), -- IPC序號 如：PQ1816161
@@ -42,7 +43,7 @@ CREATE TABLE machines (
     firmware_version VARCHAR(20), -- 韌體版本
     
     -- 網路設定
-    ip_address INET,
+    ip_address VARCHAR(15),
     mac_address VARCHAR(17),
     mqtt_topic VARCHAR(100), -- MQTT主題前綴
     
@@ -52,7 +53,7 @@ CREATE TABLE machines (
     
     -- 狀態
     current_status VARCHAR(20) DEFAULT 'offline', -- 'online', 'offline', 'error', 'maintenance'
-    is_active BOOLEAN DEFAULT true,
+    is_active BOOLEAN DEFAULT TRUE,
     installed_at DATE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -67,8 +68,9 @@ CREATE INDEX idx_machines_status ON machines(current_status);
 ### 3. 機台即時狀態表 (machine_status)
 ```sql
 CREATE TABLE machine_status (
-    id SERIAL PRIMARY KEY,
-    machine_id INTEGER REFERENCES machines(id) ON DELETE CASCADE,
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    machine_id INT,
+    FOREIGN KEY (machine_id) REFERENCES machines(id) ON DELETE CASCADE,
     
     -- 基本狀態 (對應UI狀態列)
     status VARCHAR(20) NOT NULL, -- 'online', 'offline', 'error', 'maintenance'
@@ -76,7 +78,7 @@ CREATE TABLE machine_status (
     error_message TEXT, -- 錯誤描述 如：通訊異常
     
     -- 硬幣狀態
-    coin_count INTEGER DEFAULT 0, -- 當前硬幣數量
+    coin_count INT DEFAULT 0, -- 當前硬幣數量
     coin_level VARCHAR(20), -- 'high', 'normal', 'low', 'empty'
     
     -- 感應器數據
@@ -86,8 +88,8 @@ CREATE TABLE machine_status (
     
     -- 通訊狀態
     last_heartbeat TIMESTAMP, -- 最後心跳時間
-    connection_quality INTEGER, -- 連線品質 1-5
-    uptime_seconds INTEGER, -- 運行時間(秒)
+    connection_quality INT, -- 連線品質 1-5
+    uptime_seconds INT, -- 運行時間(秒)
     
     -- 記錄時間
     recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -105,8 +107,9 @@ CREATE INDEX idx_machine_status_status ON machine_status(status);
 ### 4. 機台歷史狀態表 (machine_status_history)
 ```sql
 CREATE TABLE machine_status_history (
-    id SERIAL PRIMARY KEY,
-    machine_id INTEGER REFERENCES machines(id) ON DELETE CASCADE,
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    machine_id INT,
+    FOREIGN KEY (machine_id) REFERENCES machines(id) ON DELETE CASCADE,
     
     -- 狀態變更記錄
     old_status VARCHAR(20),
@@ -115,8 +118,8 @@ CREATE TABLE machine_status_history (
     error_message TEXT,
     
     -- 硬幣數量變化
-    old_coin_count INTEGER,
-    new_coin_count INTEGER,
+    old_coin_count INT,
+    new_coin_count INT,
     
     -- 感應器歷史數據
     temperature DECIMAL(5,2),
@@ -135,18 +138,19 @@ CREATE INDEX idx_status_history_status ON machine_status_history(new_status);
 ### 5. 兌幣交易記錄表 (transactions)
 ```sql
 CREATE TABLE transactions (
-    id SERIAL PRIMARY KEY,
+    id INT AUTO_INCREMENT PRIMARY KEY,
     transaction_no VARCHAR(50) UNIQUE NOT NULL, -- 交易編號
-    machine_id INTEGER REFERENCES machines(id) ON DELETE CASCADE,
+    machine_id INT,
+    FOREIGN KEY (machine_id) REFERENCES machines(id) ON DELETE CASCADE,
     
     -- 交易基本資訊
     transaction_type VARCHAR(20) NOT NULL, -- 'exchange', 'refund'
-    coin_amount INTEGER NOT NULL, -- 兌幣數量
+    coin_amount INT NOT NULL, -- 兌幣數量
     cash_amount DECIMAL(10,2), -- 現金金額
     
     -- 交易前後狀態
-    coin_before INTEGER, -- 交易前硬幣數量
-    coin_after INTEGER, -- 交易後硬幣數量
+    coin_before INT, -- 交易前硬幣數量
+    coin_after INT, -- 交易後硬幣數量
     
     -- 用戶資訊 (如果有的話)
     customer_id VARCHAR(100), -- 客戶識別碼
@@ -174,14 +178,16 @@ CREATE INDEX idx_transactions_date ON transactions(DATE(transaction_at));
 ### 6. 補幣記錄表 (refill_records)
 ```sql
 CREATE TABLE refill_records (
-    id SERIAL PRIMARY KEY,
-    machine_id INTEGER REFERENCES machines(id) ON DELETE CASCADE,
-    operator_id INTEGER REFERENCES users(id), -- 操作人員
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    machine_id INT,
+    operator_id INT,
+    FOREIGN KEY (machine_id) REFERENCES machines(id) ON DELETE CASCADE,
+    FOREIGN KEY (operator_id) REFERENCES users(id), -- 操作人員
     
     -- 補幣資訊
-    refill_amount INTEGER NOT NULL, -- 補幣數量
-    coin_before INTEGER, -- 補幣前數量
-    coin_after INTEGER, -- 補幣後數量
+    refill_amount INT NOT NULL, -- 補幣數量
+    coin_before INT, -- 補幣前數量
+    coin_after INT, -- 補幣後數量
     
     -- 操作方式
     refill_type VARCHAR(20) NOT NULL, -- 'remote', 'manual'
@@ -212,33 +218,34 @@ CREATE INDEX idx_refill_status ON refill_records(status);
 ### 7. 系統設定表 (machine_settings)
 ```sql
 CREATE TABLE machine_settings (
-    id SERIAL PRIMARY KEY,
-    machine_id INTEGER REFERENCES machines(id) ON DELETE CASCADE,
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    machine_id INT,
+    FOREIGN KEY (machine_id) REFERENCES machines(id) ON DELETE CASCADE,
     
     -- 營運設定 (對應UI系統設定頁面)
     coin_price DECIMAL(10,2) DEFAULT 1.00, -- 單枚硬幣價格
     exchange_rate DECIMAL(10,4) DEFAULT 1.0000, -- 兌換匯率
-    daily_limit INTEGER, -- 每日兌幣上限
+    daily_limit INT, -- 每日兌幣上限
     
     -- 警告設定
-    low_coin_threshold INTEGER DEFAULT 100, -- 低硬幣警告閾值
+    low_coin_threshold INT DEFAULT 100, -- 低硬幣警告闾值
     high_temp_threshold DECIMAL(5,2) DEFAULT 40.0, -- 高溫警告
     low_temp_threshold DECIMAL(5,2) DEFAULT 5.0, -- 低溫警告
     
     -- LINE Bot查詢設定
-    enable_stats_query BOOLEAN DEFAULT true, -- 啟用統計查詢
-    enable_status_query BOOLEAN DEFAULT true, -- 啟用狀態查詢
-    enable_historical_query BOOLEAN DEFAULT true, -- 啟用歷史查詢
-    query_rate_limit INTEGER DEFAULT 20, -- 查詢頻率限制(次/小時)
+    enable_stats_query BOOLEAN DEFAULT TRUE, -- 啟用統計查詢
+    enable_status_query BOOLEAN DEFAULT TRUE, -- 啟用狀態查詢
+    enable_historical_query BOOLEAN DEFAULT TRUE, -- 啟用歷史查詢
+    query_rate_limit INT DEFAULT 20, -- 查詢頻率限制(次/小時)
     
     -- 營業時間
     business_hours_start TIME DEFAULT '08:00:00',
     business_hours_end TIME DEFAULT '22:00:00',
-    business_days INTEGER DEFAULT 127, -- 位元掩碼：1111111 (週日到週六)
+    business_days INT DEFAULT 127, -- 位元掩碼：1111111 (週日到週六)
     
     -- 記錄時間
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     
     -- 確保每台機器只有一筆設定
     CONSTRAINT unique_machine_settings UNIQUE (machine_id)
@@ -251,8 +258,9 @@ CREATE INDEX idx_machine_settings_machine ON machine_settings(machine_id);
 ### 8. LINE Bot查詢記錄表 (linebot_queries)
 ```sql
 CREATE TABLE linebot_queries (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     
     -- 查詢內容
     query_type VARCHAR(30) NOT NULL, -- 'today_stats', 'yesterday_stats', 'business_status', 'date_query'
@@ -265,7 +273,7 @@ CREATE TABLE linebot_queries (
     
     -- 處理狀態
     status VARCHAR(20) DEFAULT 'completed', -- 'pending', 'completed', 'failed'
-    processing_time_ms INTEGER, -- 處理時間(毫秒)
+    processing_time_ms INT, -- 處理時間(毫秒)
     
     -- 時間記錄
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -289,20 +297,21 @@ CREATE INDEX idx_linebot_queries_status ON linebot_queries(status);
 ### 9. MQTT訊息日誌表 (mqtt_logs)
 ```sql
 CREATE TABLE mqtt_logs (
-    id SERIAL PRIMARY KEY,
-    machine_id INTEGER REFERENCES machines(id) ON DELETE CASCADE,
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    machine_id INT,
+    FOREIGN KEY (machine_id) REFERENCES machines(id) ON DELETE CASCADE,
     
     -- MQTT資訊
     topic VARCHAR(200) NOT NULL,
-    payload JSONB NOT NULL,
-    qos INTEGER DEFAULT 0,
-    retained BOOLEAN DEFAULT false,
+    payload JSON NOT NULL,
+    qos INT DEFAULT 0,
+    retained BOOLEAN DEFAULT FALSE,
     
     -- 訊息類型
     message_type VARCHAR(30), -- 'status', 'transaction', 'error', 'command_response'
     
     -- 處理狀態
-    processed BOOLEAN DEFAULT false,
+    processed BOOLEAN DEFAULT FALSE,
     processing_error TEXT,
     
     -- 時間記錄
@@ -316,14 +325,15 @@ CREATE INDEX idx_mqtt_logs_processed ON mqtt_logs(processed);
 CREATE INDEX idx_mqtt_logs_type ON mqtt_logs(message_type);
 CREATE INDEX idx_mqtt_logs_topic ON mqtt_logs(topic);
 
--- JSONB索引 (用於快速查詢payload內容)
-CREATE INDEX idx_mqtt_logs_payload ON mqtt_logs USING GIN (payload);
+-- JSON索引 (用於快速查詢payload內容)  
+-- MySQL 8.0+ 支援函數索引
+-- CREATE INDEX idx_mqtt_logs_payload ON mqtt_logs ((CAST(payload AS JSON)));
 ```
 
 ### 10. 系統日誌表 (system_logs)
 ```sql
 CREATE TABLE system_logs (
-    id SERIAL PRIMARY KEY,
+    id INT AUTO_INCREMENT PRIMARY KEY,
     
     -- 日誌基本資訊
     log_level VARCHAR(10) NOT NULL, -- 'DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL'
@@ -331,16 +341,18 @@ CREATE TABLE system_logs (
     message TEXT NOT NULL,
     
     -- 相關資源
-    machine_id INTEGER REFERENCES machines(id),
-    user_id INTEGER REFERENCES users(id),
+    machine_id INT,
+    user_id INT,
+    FOREIGN KEY (machine_id) REFERENCES machines(id),
+    FOREIGN KEY (user_id) REFERENCES users(id),
     
     -- 請求資訊
     request_id VARCHAR(50), -- 用於追蹤API請求
-    ip_address INET,
+    ip_address VARCHAR(15),
     user_agent TEXT,
     
     -- 額外資料
-    metadata JSONB, -- 額外的結構化資料
+    metadata JSON, -- 額外的結構化資料
     
     -- 時間
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -438,12 +450,12 @@ ORDER BY error_count DESC;
 ## 備份與安全策略
 
 ### 自動備份腳本
-```sql
--- 每日備份重要資料表
-pg_dump -t users -t machines -t machine_settings coinerex_db > backup_critical_$(date +%Y%m%d).sql
+```bash
+# 每日備份重要資料表
+mysqldump -u username -p coinerex_db users machines machine_settings > backup_critical_$(date +%Y%m%d).sql
 
--- 每週完整備份
-pg_dump coinerex_db > backup_full_$(date +%Y%m%d).sql
+# 每週完整備份
+mysqldump -u username -p coinerex_db > backup_full_$(date +%Y%m%d).sql
 ```
 
 ### 資料隱私保護
