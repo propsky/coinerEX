@@ -21,6 +21,11 @@
 
 本協定定義了飛絡力兌幣機透過 MQTT 協定與雲端管理平台的通訊格式。系統採用事件驅動與定時回報相結合的機制，確保即時性與可靠性。
 
+### 支援幣別規格
+- **接受紙鈔**: 100元、500元、1000元
+- **接受硬幣**: 50元
+- **出幣硬幣**: 統一為10元硬幣
+
 ### 設計目標
 - **即時監控**: 關鍵事件立即上報
 - **成本控制**: 優化訊息傳輸，控制月訊息量在1000個以內
@@ -93,12 +98,41 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
 | version | string | ✓ | 協定版本號 |
 | data | object | ✓ | 具體資料內容 |
 
+#### ID 生成規則
+
+##### transaction_id 生成邏輯
+**格式**: `{TYPE}_{YYYYMMDD}_{HHMMSS}_{SEQ}`
+
+**組成說明**:
+- `TYPE`: 交易類型縮寫
+  - `TXN`: 一般兌幣交易 (exchange)
+  - `REMOTE`: 遠端出幣 (remote_dispense)
+- `YYYYMMDD`: 交易日期 (8位數)
+- `HHMMSS`: 交易時間 (6位數)
+- `SEQ`: 當日流水序號 (3位數，從001開始)
+
+**範例**:
+- `TXN_20250912_103000_001` - 第1筆一般兌幣
+- `REMOTE_20250912_164500_001` - 第1筆遠端出幣
+
+**生成邏輯**:
+1. **兌幣機端生成**: 所有 transaction_id 由兌幣機本地生成
+2. **日期重置**: 每日00:00序號重置為001
+3. **斷線處理**: 網路斷線期間照常生成，恢復後批次上傳
+4. **重複避免**: 同一秒內多筆交易自動遞增序號
+5. **時間校正**: 使用兌幣機本地時間，定期與雲端同步
+
+**實作注意事項**:
+- 兌幣機需維護每日交易計數器
+- 重開機後需從持久化儲存中恢復計數器
+- 確保即使在離線狀態下也能生成唯一ID
+
 ## 回報機制
 
 ### 事件觸發回報 (即時)
 | 事件 | 觸發條件 | 優先級 | 需要ACK |
 |------|----------|--------|--------|
-| 交易完成 | 兌幣/補幣/遠端出幣完成 | 高 | ✓ |
+| 交易完成 | 兌幣/遠端出幣完成 | 高 | ✓ |
 | 故障發生 | Error Code > 0 | 最高 | ✓ |
 | 警報狀態 | Alarm Code > 0 | 高 | ✓ |
 | 狀態變更 | 機台狀態改變 | 中 | ✗ |
@@ -141,12 +175,11 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
 #### 使用情境
 **觸發時機**:
 1. **兌幣完成後**: 玩家兌幣交易完成立即上報最新總帳
-2. **補幣完成後**: 管理員補幣作業完成後上報
-3. **遠端出幣後**: 雲端遠端控制出幣完成後上報
-4. **定時回報**: 每日23:59自動上報完整總帳
-5. **雲端主動查詢**: 收到雲端查詢命令時立即回報
+2. **遠端出幣後**: 雲端遠端控制出幣完成後上報
+3. **定時回報**: 每日23:59自動上報完整總帳
+4. **雲端主動查詢**: 收到雲端查詢命令時立即回報
 
-**情境範例**: 玩家投入100元紙鈔兌換硬幣，機台出幣20個10元硬幣後，立即上報更新後的總帳資料。
+**情境範例**: 玩家投入100元紙鈔兌換硬幣，機台出幣10個10元硬幣後，立即上報更新後的總帳資料。
 
 ```json
 {
@@ -161,7 +194,7 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
     "counters": {
       "total_bills": 1250100,      // 總紙鈔數增加100元
       "total_coins": 850050,       // 總投幣數增加50元硬幣
-      "total_dispensed": 450020,   // 總出幣數增加20個硬幣
+      "total_dispensed": 450010,   // 總出幣數增加10個硬幣
       "remote_dispensed": 1500,    // 遠端出幣數不變
       "bonus_coins": 200           // 贈幣數不變
     },
@@ -192,7 +225,6 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
 |--------|------|------|
 | 0x00 | 詢問 | 機台查詢雲端指令時 |
 | 0x01 | 待機 | 正常運作，等待玩家投幣 |
-| 0x02 | 補幣 | 管理員正在補充硬幣 |
 | 0x03 | 遠端 | 執行雲端遠端出幣指令 |
 | 0x04 | 故障 | 機台發生故障無法服務 |
 
@@ -204,11 +236,10 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
 
 **觸發時機**:
 1. **玩家兌幣**: 玩家投入紙鈔或硬幣，機台完成出幣後立即上報
-2. **管理員補幣**: 管理員使用鑰匙補充硬幣完成後上報
-3. **遠端出幣**: 雲端系統遠端控制出幣完成後上報
+2. **遠端出幣**: 雲端系統遠端控制出幣完成後上報
 
 #### 情境範例 1: 玩家一般兌幣
-**情境**: 玩家投入100元紙鈔，機台自動出幣20個5元硬幣
+**情境**: 玩家投入100元紙鈔，機台自動出幣10個10元硬幣
 ```json
 {
   "timestamp": "2025-09-12T10:30:00.000Z",
@@ -222,9 +253,9 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
     "amounts": {
       "bills_inserted": 100,       // 投入100元紙鈔
       "coins_inserted": 0,         // 未投入硬幣
-      "coins_dispensed": 20,       // 出幣20個
+      "coins_dispensed": 10,       // 出幣10個
       "transaction_amount": 100,   // 交易金額100元
-      "coin_value": 5              // 每個硬幣5元
+      "coin_value": 10             // 每個硬幣10元
     },
     "balance": {
       "before": 14900,            // 交易前餘額
@@ -240,42 +271,223 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
 }
 ```
 
-#### 情境範例 2: 管理員補幣
-**情境**: 管理員使用鑰匙打開機台，補充1000個10元硬幣
+#### 情境範例 2: 玩家投入50元硬幣兌幣
+**情境**: 玩家投入50元硬幣，機台自動出幣5個10元硬幣
 ```json
 {
-  "timestamp": "2025-09-12T14:15:30.000Z",
+  "timestamp": "2025-09-12T10:35:00.000Z",
   "device_id": "CCM_001",
-  "message_id": "uuid-003",
-  "message_type": "transaction", 
+  "message_id": "uuid-002b",
+  "message_type": "transaction",
   "version": "1.1",
   "data": {
-    "transaction_type": "refill",
-    "transaction_id": "REFILL_20250912_141530_001",
+    "transaction_type": "exchange",
+    "transaction_id": "TXN_20250912_103500_001",
     "amounts": {
-      "bills_inserted": 0,
-      "coins_inserted": 0,
-      "coins_dispensed": 0,       // 補幣不是出幣
-      "coins_added": 1000,        // 補充1000個硬幣
-      "transaction_amount": 0,    // 補幣不涉及金額交易
-      "coin_value": 10
+      "bills_inserted": 0,         // 未投入紙鈔
+      "coins_inserted": 50,        // 投入50元硬幣
+      "coins_dispensed": 5,        // 出幣5個
+      "transaction_amount": 50,    // 交易金額50元
+      "coin_value": 10             // 每個硬幣10元
     },
     "balance": {
-      "before": 15000,
-      "after": 15000             // 餘額不變，但庫存增加
+      "before": 15000,            // 交易前餘額
+      "after": 15050              // 交易後餘額增加50元
     },
-    "refill_details": {
-      "coins_before_refill": 200,  // 補幣前硬幣庫存
-      "coins_after_refill": 1200,  // 補幣後硬幣庫存
-      "operator_id": "ADMIN_001"   // 操作員ID
+    "timing": {
+      "start_time": "2025-09-12T10:34:45.000Z",
+      "dispense_time": "2025-09-12T10:35:00.000Z",
+      "duration_ms": 15000
     },
     "success": true
   }
 }
 ```
 
-#### 情境範例 3: 遠端出幣
-**情境**: 雲端系統遠端控制機台出幣5個硬幣給特定玩家
+#### 情境範例 3a: 玩家投入500元紙鈔兌幣
+**情境**: 玩家投入500元紙鈔，機台自動出幣50個10元硬幣
+```json
+{
+  "timestamp": "2025-09-12T11:15:00.000Z",
+  "device_id": "CCM_001",
+  "message_id": "uuid-002c",
+  "message_type": "transaction",
+  "version": "1.1",
+  "data": {
+    "transaction_type": "exchange",
+    "transaction_id": "TXN_20250912_111500_001",
+    "amounts": {
+      "bills_inserted": 500,       // 投入500元紙鈔
+      "coins_inserted": 0,         // 未投入硬幣
+      "coins_dispensed": 50,       // 出幣50個
+      "transaction_amount": 500,   // 交易金額500元
+      "coin_value": 10             // 每個硬幣10元
+    },
+    "balance": {
+      "before": 15050,            // 交易前餘額
+      "after": 15550              // 交易後餘額增加500元
+    },
+    "timing": {
+      "start_time": "2025-09-12T11:14:45.000Z",
+      "dispense_time": "2025-09-12T11:15:00.000Z",
+      "duration_ms": 15000
+    },
+    "success": true
+  }
+}
+```
+
+#### 情境範例 3b: 玩家投入1000元紙鈔兌幣
+**情境**: 玩家投入1000元紙鈔，機台自動出幣100個10元硬幣
+```json
+{
+  "timestamp": "2025-09-12T11:45:00.000Z",
+  "device_id": "CCM_001",
+  "message_id": "uuid-002d",
+  "message_type": "transaction",
+  "version": "1.1",
+  "data": {
+    "transaction_type": "exchange",
+    "transaction_id": "TXN_20250912_114500_001",
+    "amounts": {
+      "bills_inserted": 1000,      // 投入1000元紙鈔
+      "coins_inserted": 0,         // 未投入硬幣
+      "coins_dispensed": 100,      // 出幣100個
+      "transaction_amount": 1000,  // 交易金額1000元
+      "coin_value": 10             // 每個硬幣10元
+    },
+    "balance": {
+      "before": 15550,            // 交易前餘額
+      "after": 16550              // 交易後餘額增加1000元
+    },
+    "timing": {
+      "start_time": "2025-09-12T11:44:30.000Z",
+      "dispense_time": "2025-09-12T11:45:00.000Z",
+      "duration_ms": 30000        // 出幣較多，時間較長
+    },
+    "success": true
+  }
+}
+```
+
+#### 情境範例 4: 遠端出幣
+**情境**: 雲端系統遠端控制機台出幣5個硬幣
+
+### 遠端出幣完整流程說明
+
+#### 角色定義
+1. **玩家**: 使用兌幣機的一般用戶
+2. **管理者**: 兌幣機營運管理人員
+3. **管理者APP**: 雲端管理平台的手機/網頁應用程式
+4. **雲端伺服器**: IOTCoinChanger雲端管理系統
+5. **兌幣機**: 現場的飛絡力兌幣機設備
+
+#### 遠端出幣觸發情境
+**故障補償情境**
+1. 玩家投幣後機台故障，未正常出幣
+2. 玩家向現場管理者反映或透過LINE Bot客服
+3. 管理者確認故障情況並執行遠端補償出幣
+
+#### 完整操作流程
+
+```
+玩家 → 管理者 → 管理者APP → 雲端伺服器 → 兌幣機 → 玩家
+```
+
+**步驟1: 問題回報**
+```
+玩家 → 管理者
+- 玩家向現場管理者反映：「我投了100元但機台卡住沒出幣」
+- 或透過LINE Bot客服系統回報問題
+```
+
+**步驟2: 情況確認**
+```
+管理者 → 現場檢查
+- 管理者到現場查看機台狀況
+- 確認機台確實有故障或需要補償
+- 決定補償數量（例如：投入100元 = 補償10個10元硬幣）
+```
+
+**步驟3: 遠端操作**
+```
+管理者 → 管理者APP
+- 管理者登入IOTCoinChanger管理APP
+- 選擇對應的兌幣機（CCM_001）
+- 選擇「遠端出幣」功能
+- 輸入出幣數量：5個硬幣
+- 輸入補償原因：「機台故障補償」
+- 確認執行
+```
+
+**步驟4: 雲端處理**
+```
+管理者APP → 雲端伺服器
+- APP將遠端出幣請求傳送到雲端伺服器
+- 雲端伺服器驗證管理者權限
+- 雲端伺服器記錄操作日誌
+- 產生遠端控制命令
+```
+
+**步驟5: MQTT命令傳送**
+```
+雲端伺服器 → 兌幣機 (透過MQTT)
+- 雲端發送遠端出幣命令到兌幣機
+- 主題: coinerex/commands/CCM_001/coin_dispense
+- 內容包含：出幣數量、操作原因、命令ID等
+```
+
+**步驟6: 兌幣機執行**
+```
+兌幣機接收並執行
+- 兌幣機收到MQTT命令
+- 驗證命令格式和權限
+- 執行出幣動作：出幣5個10元硬幣
+- 更新內部總帳記錄
+```
+
+**步驟7: 結果回報**
+```
+兌幣機 → 雲端伺服器 (透過MQTT)
+- 兌幣機發送命令執行結果確認
+- 發送transaction事件記錄遠端出幣
+- 更新最新的accounting總帳資料
+```
+
+**步驟8: 狀態更新**
+```
+雲端伺服器 → 管理者APP
+- 雲端更新操作狀態為「執行成功」
+- 管理者APP顯示出幣完成通知
+- 記錄到操作歷史中
+```
+
+**步驟9: 現場確認**
+```
+管理者 → 玩家
+- 管理者確認機台已出幣
+- 告知玩家問題已解決
+- 玩家取得補償硬幣
+```
+
+#### 技術實作細節
+
+**安全控制**:
+- 只有具權限的管理者可執行遠端出幣
+- 每次操作都有完整的審計記錄
+- 設定每日/每次出幣上限避免誤操作
+
+**離線處理**:
+- 如果兌幣機離線，命令會暫存在雲端
+- 兌幣機重新連線後自動執行暫存命令
+- 超時未執行的命令會自動取消
+
+**錯誤處理**:
+- 如果兌幣機硬幣不足，會回報錯誤
+- 如果機台故障無法出幣，會回報故障狀態
+- 管理者APP會顯示具體的錯誤原因
+
+#### 實際MQTT訊息範例
 ```json
 {
   "timestamp": "2025-09-12T16:45:00.000Z",
@@ -299,9 +511,9 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
       "after": 15000             // 餘額不變
     },
     "remote_details": {
-      "initiated_by": "SYSTEM",   // 系統發起
-      "reason": "customer_compensation", // 客戶補償
-      "user_id": "USER_12345"     // 受益玩家ID
+      "operator_account": "ADMIN_001",    // 操作管理員帳號
+      "coins_dispensed": 5,               // 出幣數量
+      "reason": "故障補償"                // 操作原因
     },
     "success": true
   }
@@ -326,7 +538,6 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
 | 類型 | 說明 | 觸發者 | 影響餘額 |
 |------|------|--------|----------|
 | exchange | 一般兌幣 | 玩家投幣 | ✓ |
-| refill | 補幣作業 | 管理員 | ✗ |
 | remote_dispense | 遠端出幣 | 雲端系統 | ✗ |
 
 ### 3. 故障通知 (error)
@@ -351,7 +562,7 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
     "error_description": "退幣器已無硬幣",
     "error_category": "dispenser",
     "severity": "critical",
-    "suggested_action": "立即補幣",
+    "suggested_action": "立即補充硬幣",
     "auto_recoverable": false,
     "affected_functions": ["coin_dispense", "exchange"],
     "context": {
@@ -467,7 +678,7 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
     "alarm_description": "低幣量警報",
     "severity": "warning",
     "current_level": "低",
-    "recommended_action": "儘快補幣",
+    "recommended_action": "儘快補充硬幣",
     "details": {
       "coins_remaining": 50,       // 剩餘硬幣數
       "warning_threshold": 100,    // 警告門檻
@@ -551,7 +762,7 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
   "result": {
     "alert_level": "medium",
     "notification_sent": ["LINE", "Telegram"],
-    "refill_scheduled": true,
+    "maintenance_scheduled": true,
     "scheduled_time": "2025-09-12T17:00:00.000Z",
     "technician_assigned": "TECH_002"
   }
@@ -686,9 +897,8 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
     "coins_to_dispense": 5,      // 出幣5個
     "coin_value": 10,            // 10元硬幣
     "timeout_seconds": 30,       // 30秒超時
-    "reason": "customer_compensation", // 客戶補償
-    "operator_id": "STAFF_001",  // 操作員ID
-    "reference_transaction": "TXN_20250912_160000_001" // 參考交易
+    "reason": "故障補償",           // 操作原因
+    "operator_account": "STAFF_001"  // 操作員帳號
   }
 }
 ```
@@ -847,9 +1057,9 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
 | 22 | 紙鈔機訊號-脈衝異常 | 防釣魚機制，進設定解除故障 | High |
 | 23 | 紙鈔器訊號常駐 | 沒接紙鈔機或配線/未扳NC | High |
 | 41 | 退幣器故障 | 檢查退幣機有無異常 | Critical |
-| 42 | 退幣器已無硬幣 | 補幣 | Critical |
+| 42 | 退幣器已無硬幣 | 補充硬幣 | Critical |
 | 43 | 退幣機異常出幣 | 防電擊機制，進設定解除故障 | High |
-| 44 | 退幣器達低水位 | 補幣 | High |
+| 44 | 退幣器達低水位 | 補充硬幣 | High |
 | 51 | 兌幣紀錄異常 | 進設定清除上一筆交易內容 | Medium |
 | 52 | 達出幣上限 | 進後台結算功能歸0 | Medium |
 | 99 | 遠端預警異常鎖機 | 進設定解除故障 | High |
@@ -858,7 +1068,7 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
 
 | 代碼 | 警告原因 | 處理方式 |
 |------|----------|----------|
-| 01 | 低幣量 | 儘快補幣 |
+| 01 | 低幣量 | 儘快補充硬幣 |
 | 02 | 前門開啟 | 檢查門鎖狀態 |
 | 03 | 暫停兌幣 | 檢查設定狀態 |
 
@@ -881,16 +1091,23 @@ class CoinerMQTTClient:
         self.client = mqtt.Client()
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
-        
+
         # ACK 追蹤
         self.pending_acks: Dict[str, Dict] = {}  # message_id -> {"timestamp": ..., "retry_count": ...}
         self.ack_timeout = 10  # 首次超時時間（秒）
         self.max_retries = 3
         self.retry_intervals = [10, 30, 60]  # 重試間隔
-        
+
         # 離線訊息快取
         self.offline_cache = []
         self.max_cache_size = 100
+
+        # 交易ID計數器
+        self.transaction_counters = {
+            "TXN": 0,
+            "REMOTE": 0
+        }
+        self.last_date = ""  # 追蹤日期變更
         
         # 啟動ACK監控執行緒
         self.ack_monitor_thread = threading.Thread(target=self._monitor_acks, daemon=True)
@@ -1026,7 +1243,32 @@ class CoinerMQTTClient:
             self._publish_with_ack(topic, message, requires_ack=True)
         
         self.offline_cache.clear()
-    
+
+    def generate_transaction_id(self, transaction_type: str) -> str:
+        """生成交易ID"""
+        now = datetime.now()
+        current_date = now.strftime("%Y%m%d")
+        current_time = now.strftime("%H%M%S")
+
+        # 檢查日期是否變更，如果是則重置計數器
+        if current_date != self.last_date:
+            self.transaction_counters = {"TXN": 0, "REMOTE": 0}
+            self.last_date = current_date
+
+        # 根據交易類型選擇前綴
+        type_mapping = {
+            "exchange": "TXN",
+            "remote_dispense": "REMOTE"
+        }
+
+        prefix = type_mapping.get(transaction_type, "TXN")
+
+        # 遞增計數器
+        self.transaction_counters[prefix] += 1
+        seq = f"{self.transaction_counters[prefix]:03d}"
+
+        return f"{prefix}_{current_date}_{current_time}_{seq}"
+
     def publish_accounting(self, accounting_data: Dict[str, Any]):
         """發布總帳資料"""
         message = {
@@ -1162,8 +1404,8 @@ class CoinerMQTTClient:
         actions = {
             1: "送修",
             2: "檢查碼錶是否異常或配線",
-            42: "補幣",
-            44: "補幣"
+            42: "補充硬幣",
+            44: "補充硬幣"
         }
         return actions.get(error_code, "檢查設備狀態")
     
@@ -1194,11 +1436,11 @@ client.connect("mqtt.coinerex.com", 1883)
 # 發布交易事件（需要ACK確認）
 transaction_data = {
     "transaction_type": "exchange",
-    "transaction_id": "TXN_001",
+    "transaction_id": client.generate_transaction_id("exchange"),  # 自動生成交易ID
     "amounts": {
         "bills_inserted": 100,
         "coins_inserted": 0,
-        "coins_dispensed": 20,
+        "coins_dispensed": 10,
         "transaction_amount": 100
     },
     "balance": {
