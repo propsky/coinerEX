@@ -79,11 +79,11 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
 
 ```json
 {
-  "timestamp": "2025-09-12T10:30:00.000Z",
+  "timestamp": 1726132200,
   "device_id": "string",
-  "message_id": "string", 
+  "message_id": "string",
   "message_type": "string",
-  "version": "1.0",
+  "version": "1.3.2",
   "data": {}
 }
 ```
@@ -91,12 +91,34 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
 #### 基礎欄位說明
 | 欄位 | 類型 | 必填 | 說明 |
 |------|------|------|------|
-| timestamp | string | ✓ | ISO 8601 格式時間戳記 |
+| timestamp | number | ✓ | Unix時間戳記 (秒, UTC+8時區) |
 | device_id | string | ✓ | 設備唯一識別碼 |
 | message_id | string | ✓ | 訊息唯一識別碼 (UUID) |
 | message_type | string | ✓ | 訊息類型 |
-| version | string | ✓ | 協定版本號 |
+| version | string | ✓ | 兌幣機程式版本號 (如: "1.3.2") |
 | data | object | ✓ | 具體資料內容 |
+
+#### 時間戳記說明
+- **格式**: Unix timestamp (秒)
+- **時區**: UTC+8 (台灣標準時間)
+- **範例**: `1726132200` (對應 2025-09-12 18:30:00 UTC+8)
+- **計算**: 從1970-01-01 00:00:00 UTC開始的秒數，以UTC+8時區計算
+- **實作**: 兌幣機使用本地時間(UTC+8)產生時間戳記，雲端系統按UTC+8解析
+
+**時間戳記轉換範例**:
+```
+UTC+8時間: 2025-09-12 18:30:00
+Unix時間戳: 1726132200
+
+UTC+8時間: 2025-09-12 18:35:00
+Unix時間戳: 1726132500
+```
+
+#### 版本號說明
+- **定義**: 兌幣機韌體程式的版本號
+- **來源**: 參考《兌幣機-飛絡力雲端通訊協定V1.3.pdf》
+- **格式**: "主版本.次版本.修訂版本" (如: "1.3.2")
+- **用途**: 兌幣機開機時會持續向IPC回報此程式版本
 
 #### ID 生成規則
 
@@ -154,7 +176,7 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
 #### ACK訊息格式
 ```json
 {
-  "timestamp": "2025-09-12T10:30:00.000Z",
+  "timestamp": 1726132200,
   "ack_message_id": "原訊息的message_id",
   "status": "received|processed|error",
   "error_message": "錯誤描述 (如果有)"
@@ -181,13 +203,17 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
 
 **情境範例**: 玩家投入100元紙鈔兌換硬幣，機台出幣10個10元硬幣後，立即上報更新後的總帳資料。
 
+**📤 兌幣機 → 雲端伺服器**
+*主題*: `coinerex/accounting/CCM_001`
+*方向*: 兌幣機主動上報總帳資料給雲端管理系統
+
 ```json
 {
-  "timestamp": "2025-09-12T10:30:00.000Z",
+  "timestamp": 1726132200,
   "device_id": "CCM_001",
   "message_id": "uuid-001",
   "message_type": "accounting",
-  "version": "1.1",
+  "version": "1.3.2",
   "data": {
     "machine_status": 1,
     "status_description": "待機",
@@ -210,10 +236,13 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
 }
 ```
 
-**伺服器回應**: 
+**📥 雲端伺服器 → 兌幣機**
+*主題*: `coinerex/ack/CCM_001`
+*方向*: 雲端伺服器回應ACK確認給兌幣機
+
 ```json
 {
-  "timestamp": "2025-09-12T10:30:01.000Z",
+  "timestamp": 1726132201,
   "ack_message_id": "uuid-001",
   "status": "processed",
   "error_message": null
@@ -240,13 +269,18 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
 
 #### 情境範例 1: 玩家一般兌幣
 **情境**: 玩家投入100元紙鈔，機台自動出幣10個10元硬幣
+
+**📤 兌幣機 → 雲端伺服器**
+*主題*: `coinerex/transaction/CCM_001`
+*方向*: 兌幣機向雲端報告交易完成事件
+
 ```json
 {
-  "timestamp": "2025-09-12T10:30:00.000Z",
+  "timestamp": 1726132200,
   "device_id": "CCM_001",
   "message_id": "uuid-002", 
   "message_type": "transaction",
-  "version": "1.1",
+  "version": "1.3.2",
   "data": {
     "transaction_type": "exchange",
     "transaction_id": "TXN_20250912_103000_001",
@@ -262,8 +296,8 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
       "after": 15000              // 交易後餘額增加100元
     },
     "timing": {
-      "start_time": "2025-09-12T10:29:45.000Z",  // 開始投幣時間
-      "dispense_time": "2025-09-12T10:30:00.000Z", // 出幣完成時間
+      "start_time": 1726132185,  // 開始投幣時間
+      "dispense_time": 1726132200, // 出幣完成時間
       "duration_ms": 15000        // 整個交易耗時15秒
     },
     "success": true
@@ -273,13 +307,18 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
 
 #### 情境範例 2: 玩家投入50元硬幣兌幣
 **情境**: 玩家投入50元硬幣，機台自動出幣5個10元硬幣
+
+**📤 兌幣機 → 雲端伺服器**
+*主題*: `coinerex/transaction/CCM_001`
+*方向*: 兌幣機向雲端報告交易完成事件
+
 ```json
 {
-  "timestamp": "2025-09-12T10:35:00.000Z",
+  "timestamp": 1726132500,
   "device_id": "CCM_001",
   "message_id": "uuid-002b",
   "message_type": "transaction",
-  "version": "1.1",
+  "version": "1.3.2",
   "data": {
     "transaction_type": "exchange",
     "transaction_id": "TXN_20250912_103500_001",
@@ -295,8 +334,8 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
       "after": 15050              // 交易後餘額增加50元
     },
     "timing": {
-      "start_time": "2025-09-12T10:34:45.000Z",
-      "dispense_time": "2025-09-12T10:35:00.000Z",
+      "start_time": 1726132485,
+      "dispense_time": 1726132500,
       "duration_ms": 15000
     },
     "success": true
@@ -306,13 +345,18 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
 
 #### 情境範例 3a: 玩家投入500元紙鈔兌幣
 **情境**: 玩家投入500元紙鈔，機台自動出幣50個10元硬幣
+
+**📤 兌幣機 → 雲端伺服器**
+*主題*: `coinerex/transaction/CCM_001`
+*方向*: 兌幣機向雲端報告交易完成事件
+
 ```json
 {
-  "timestamp": "2025-09-12T11:15:00.000Z",
+  "timestamp": 1726134900,
   "device_id": "CCM_001",
   "message_id": "uuid-002c",
   "message_type": "transaction",
-  "version": "1.1",
+  "version": "1.3.2",
   "data": {
     "transaction_type": "exchange",
     "transaction_id": "TXN_20250912_111500_001",
@@ -328,8 +372,8 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
       "after": 15550              // 交易後餘額增加500元
     },
     "timing": {
-      "start_time": "2025-09-12T11:14:45.000Z",
-      "dispense_time": "2025-09-12T11:15:00.000Z",
+      "start_time": 1726134885,
+      "dispense_time": 1726134900,
       "duration_ms": 15000
     },
     "success": true
@@ -339,13 +383,18 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
 
 #### 情境範例 3b: 玩家投入1000元紙鈔兌幣
 **情境**: 玩家投入1000元紙鈔，機台自動出幣100個10元硬幣
+
+**📤 兌幣機 → 雲端伺服器**
+*主題*: `coinerex/transaction/CCM_001`
+*方向*: 兌幣機向雲端報告交易完成事件
+
 ```json
 {
-  "timestamp": "2025-09-12T11:45:00.000Z",
+  "timestamp": 1726136700,
   "device_id": "CCM_001",
   "message_id": "uuid-002d",
   "message_type": "transaction",
-  "version": "1.1",
+  "version": "1.3.2",
   "data": {
     "transaction_type": "exchange",
     "transaction_id": "TXN_20250912_114500_001",
@@ -361,8 +410,8 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
       "after": 16550              // 交易後餘額增加1000元
     },
     "timing": {
-      "start_time": "2025-09-12T11:44:30.000Z",
-      "dispense_time": "2025-09-12T11:45:00.000Z",
+      "start_time": 1726136670,
+      "dispense_time": 1726136700,
       "duration_ms": 30000        // 出幣較多，時間較長
     },
     "success": true
@@ -488,13 +537,18 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
 - 管理者APP會顯示具體的錯誤原因
 
 #### 實際MQTT訊息範例
+
+**📤 兌幣機 → 雲端伺服器**
+*主題*: `coinerex/transaction/CCM_001`
+*方向*: 兌幣機向雲端報告遠端出幣交易完成
+
 ```json
 {
-  "timestamp": "2025-09-12T16:45:00.000Z",
+  "timestamp": 1726154700,
   "device_id": "CCM_001",
   "message_id": "uuid-004",
   "message_type": "transaction",
-  "version": "1.1", 
+  "version": "1.3.2", 
   "data": {
     "transaction_type": "remote_dispense",
     "transaction_id": "REMOTE_20250912_164500_001",
@@ -523,13 +577,13 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
 **伺服器回應**: 
 ```json
 {
-  "timestamp": "2025-09-12T10:30:01.000Z",
+  "timestamp": 1726132201,
   "ack_message_id": "uuid-002",
   "status": "processed",
   "result": {
     "transaction_recorded": true,
     "points_awarded": 100,        // 如果有積分系統
-    "next_maintenance": "2025-09-15T02:00:00.000Z"
+    "next_maintenance": 1726340400
   }
 }
 ```
@@ -550,13 +604,18 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
 
 #### 情境範例 1: 硬幣用盡故障
 **情境**: 機台在玩家兌幣過程中發現退幣器硬幣用盡，無法完成出幣
+
+**📤 兌幣機 → 雲端伺服器**
+*主題*: `coinerex/error/CCM_001`
+*方向*: 兌幣機向雲端報告故障事件
+
 ```json
 {
-  "timestamp": "2025-09-12T10:30:00.000Z",
+  "timestamp": 1726132200,
   "device_id": "CCM_001",
   "message_id": "uuid-003",
   "message_type": "error", 
-  "version": "1.1",
+  "version": "1.3.2",
   "data": {
     "error_code": 42,
     "error_description": "退幣器已無硬幣",
@@ -580,13 +639,18 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
 
 #### 情境範例 2: 投幣器異常故障
 **情境**: 機台偵測到投幣器訊號異常，可能有釣魚攻擊
+
+**📤 兌幣機 → 雲端伺服器**
+*主題*: `coinerex/error/CCM_001`
+*方向*: 兌幣機向雲端報告故障事件
+
 ```json
 {
-  "timestamp": "2025-09-12T11:45:30.000Z",
+  "timestamp": 1726136730,
   "device_id": "CCM_001", 
   "message_id": "uuid-004",
   "message_type": "error",
-  "version": "1.1",
+  "version": "1.3.2",
   "data": {
     "error_code": 12,
     "error_description": "投幣器訊號-脈衝異常",
@@ -597,7 +661,7 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
     "affected_functions": ["coin_accept", "exchange"],
     "context": {
       "detection_count": 5,        // 異常檢測次數
-      "last_valid_pulse": "2025-09-12T11:44:00.000Z",
+      "last_valid_pulse": 1726136640,
       "anomaly_type": "pulse_frequency_abnormal"
     },
     "security": {
@@ -610,13 +674,18 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
 
 #### 情境範例 3: 紙鈔機通訊故障
 **情境**: 機台與紙鈔驗鈔機RS232通訊中斷
+
+**📤 兌幣機 → 雲端伺服器**
+*主題*: `coinerex/error/CCM_001`
+*方向*: 兌幣機向雲端報告故障事件
+
 ```json
 {
-  "timestamp": "2025-09-12T13:20:15.000Z",
+  "timestamp": 1726142415,
   "device_id": "CCM_001",
   "message_id": "uuid-005", 
   "message_type": "error",
-  "version": "1.1",
+  "version": "1.3.2",
   "data": {
     "error_code": 21,
     "error_description": "紙鈔機異常(RS232)",
@@ -627,13 +696,13 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
     "affected_functions": ["bill_accept"],
     "context": {
       "communication_status": "disconnected",
-      "last_response": "2025-09-12T13:19:45.000Z",
+      "last_response": 1726142385,
       "retry_count": 3,
       "recovery_attempts": 2
     },
     "recovery": {
       "auto_retry_enabled": true,
-      "next_retry_time": "2025-09-12T13:20:45.000Z",
+      "next_retry_time": 1726142445,
       "fallback_mode": "coin_only"  // 僅接受硬幣
     }
   }
@@ -643,13 +712,13 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
 **伺服器回應**: 
 ```json
 {
-  "timestamp": "2025-09-12T10:30:01.000Z",
+  "timestamp": 1726132201,
   "ack_message_id": "uuid-003",
   "status": "processed",
   "result": {
     "alert_sent": true,
     "technician_dispatched": true,
-    "estimated_arrival": "2025-09-12T11:00:00.000Z",
+    "estimated_arrival": 1726134000,
     "remote_actions": ["disable_coin_acceptance"],
     "priority_level": "urgent"
   }
@@ -666,13 +735,18 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
 
 #### 情境範例 1: 低幣量警報
 **情境**: 機台硬幣庫存降至警戒線以下，但仍可提供服務
+
+**📤 兌幣機 → 雲端伺服器**
+*主題*: `coinerex/alarm/CCM_001`
+*方向*: 兌幣機向雲端報告警報事件
+
 ```json
 {
-  "timestamp": "2025-09-12T15:30:00.000Z",
+  "timestamp": 1726149600,
   "device_id": "CCM_001",
   "message_id": "uuid-006",
   "message_type": "alarm",
-  "version": "1.1", 
+  "version": "1.3.2", 
   "data": {
     "alarm_code": 1,
     "alarm_description": "低幣量警報",
@@ -696,13 +770,18 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
 
 #### 情境範例 2: 前門開啟警報
 **情境**: 管理員打開機台前門進行維護，但忘記關閉
+
+**📤 兌幣機 → 雲端伺服器**
+*主題*: `coinerex/alarm/CCM_001`
+*方向*: 兌幣機向雲端報告警報事件
+
 ```json
 {
-  "timestamp": "2025-09-12T09:15:00.000Z",
+  "timestamp": 1726127700,
   "device_id": "CCM_001",
   "message_id": "uuid-007",
   "message_type": "alarm",
-  "version": "1.1",
+  "version": "1.3.2",
   "data": {
     "alarm_code": 2,
     "alarm_description": "前門開啟警報",
@@ -711,7 +790,7 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
     "recommended_action": "檢查並關閉機台前門",
     "details": {
       "door_open_duration": "00:15:00", // 已開啟15分鐘
-      "last_maintenance": "2025-09-12T09:00:00.000Z",
+      "last_maintenance": 1726126800,
       "security_status": "monitoring",  // 安全監控中
       "camera_recording": true          // 攝影機記錄中
     },
@@ -727,11 +806,11 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
 **情境**: 管理員透過設定暫停兌幣功能
 ```json
 {
-  "timestamp": "2025-09-12T20:00:00.000Z", 
+  "timestamp": 1726164000, 
   "device_id": "CCM_001",
   "message_id": "uuid-008",
   "message_type": "alarm",
-  "version": "1.1",
+  "version": "1.3.2",
   "data": {
     "alarm_code": 3,
     "alarm_description": "暫停兌幣模式",
@@ -741,8 +820,8 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
     "details": {
       "pause_reason": "scheduled_maintenance", // 定期維護
       "paused_by": "ADMIN_001",                // 操作員
-      "pause_start_time": "2025-09-12T20:00:00.000Z",
-      "scheduled_resume_time": "2025-09-13T08:00:00.000Z",
+      "pause_start_time": 1726164000,
+      "scheduled_resume_time": 1726207200,
       "manual_resume_required": false          // 自動恢復
     },
     "impact": {
@@ -756,14 +835,14 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
 **伺服器回應**: 
 ```json
 {
-  "timestamp": "2025-09-12T15:30:01.000Z",
+  "timestamp": 1726149601,
   "ack_message_id": "uuid-006", 
   "status": "processed",
   "result": {
     "alert_level": "medium",
     "notification_sent": ["LINE", "Telegram"],
     "maintenance_scheduled": true,
-    "scheduled_time": "2025-09-12T17:00:00.000Z",
+    "scheduled_time": 1726155600,
     "technician_assigned": "TECH_002"
   }
 }
@@ -781,16 +860,16 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
 **情境**: 機台正常運作中，定期發送狀態心跳
 ```json
 {
-  "timestamp": "2025-09-12T10:30:00.000Z",
+  "timestamp": 1726132200,
   "device_id": "CCM_001",
   "message_id": "uuid-009",
   "message_type": "heartbeat",
-  "version": "1.1",
+  "version": "1.3.2",
   "data": {
     "status": "online",
     "firmware_version": "1.3.2",
     "uptime_seconds": 86400,      // 運行24小時
-    "last_transaction": "2025-09-12T10:25:00.000Z",
+    "last_transaction": 1726131900,
     "network_quality": "excellent",
     "system_health": {
       "cpu_usage": 25,            // CPU使用率25%
@@ -808,7 +887,7 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
       "transactions_today": 45,   // 今日交易筆數
       "coins_dispensed_today": 890, // 今日出幣數
       "error_count_today": 0,     // 今日錯誤次數
-      "last_maintenance": "2025-09-10T08:00:00.000Z"
+      "last_maintenance": 1725926400
     }
   }
 }
@@ -818,16 +897,16 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
 **情境**: 機台運作中但有部分功能異常
 ```json
 {
-  "timestamp": "2025-09-12T14:30:00.000Z",
+  "timestamp": 1726146000,
   "device_id": "CCM_001", 
   "message_id": "uuid-010",
   "message_type": "heartbeat",
-  "version": "1.1",
+  "version": "1.3.2",
   "data": {
     "status": "degraded",         // 降級運作
     "firmware_version": "1.3.2",
     "uptime_seconds": 100800,
-    "last_transaction": "2025-09-12T14:20:00.000Z", 
+    "last_transaction": 1726145400, 
     "network_quality": "good",
     "system_health": {
       "cpu_usage": 45,
@@ -844,7 +923,7 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
     "active_issues": [
       {
         "issue_type": "bill_acceptor_offline",
-        "since": "2025-09-12T13:15:00.000Z",
+        "since": 1726142100,
         "impact": "only_coins_accepted"
       }
     ],
@@ -852,7 +931,7 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
       "transactions_today": 32,
       "coins_dispensed_today": 640,
       "error_count_today": 2,
-      "last_maintenance": "2025-09-10T08:00:00.000Z"
+      "last_maintenance": 1725926400
     }
   }
 }
@@ -861,12 +940,12 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
 **伺服器回應**: 心跳信號通常不需要ACK回應，但伺服器可選擇性回應
 ```json
 {
-  "timestamp": "2025-09-12T10:30:02.000Z",
+  "timestamp": 1726132202,
   "device_id": "CCM_001",
   "message_type": "heartbeat_response",
   "data": {
-    "server_time": "2025-09-12T10:30:02.000Z",
-    "next_maintenance": "2025-09-15T02:00:00.000Z",
+    "server_time": 1726132202,
+    "next_maintenance": 1726340400,
     "config_version": "2.1.0",
     "update_available": false
   }
@@ -886,9 +965,14 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
 **情境範例**: 客戶投訴機台故障未出幣，客服人員遠端補償出幣
 
 **步驟1 - 雲端發送命令**:
+
+**📥 雲端伺服器 → 兌幣機**
+*主題*: `coinerex/commands/CCM_001/coin_dispense`
+*方向*: 雲端伺服器向兌幣機發送遠端出幣命令
+
 ```json
 {
-  "timestamp": "2025-09-12T16:30:00.000Z",
+  "timestamp": 1726153800,
   "command_id": "CMD_20250912_001",
   "command_type": "coin_dispense",
   "requires_ack": true,
@@ -904,9 +988,14 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
 ```
 
 **步驟2 - 機台執行並回應**:
+
+**📤 兌幣機 → 雲端伺服器**
+*主題*: `coinerex/commands/CCM_001/ack`
+*方向*: 兌幣機向雲端回應命令執行結果
+
 ```json
 {
-  "timestamp": "2025-09-12T16:30:15.000Z",
+  "timestamp": 1726153815,
   "ack_command_id": "CMD_20250912_001",
   "status": "success",
   "result": {
@@ -927,7 +1016,7 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
 **步驟1 - 雲端發送命令**:
 ```json
 {
-  "timestamp": "2025-09-12T02:30:00.000Z",
+  "timestamp": 1726102200,
   "command_id": "CMD_20250912_002", 
   "command_type": "restart",
   "requires_ack": true,
@@ -945,13 +1034,13 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
 **步驟2 - 機台執行並回應**:
 ```json
 {
-  "timestamp": "2025-09-12T02:31:00.000Z",
+  "timestamp": 1726102260,
   "ack_command_id": "CMD_20250912_002",
   "status": "success", 
   "result": {
     "restart_initiated": true,
-    "shutdown_time": "2025-09-12T02:31:00.000Z",
-    "expected_boot_time": "2025-09-12T02:33:00.000Z",
+    "shutdown_time": 1726102260,
+    "expected_boot_time": 1726102380,
     "data_backup_completed": true,
     "active_transactions": 0     // 無進行中交易
   }
@@ -967,7 +1056,7 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
 **步驟1 - 雲端發送鎖定命令**:
 ```json
 {
-  "timestamp": "2025-09-12T11:45:00.000Z",
+  "timestamp": 1726136700,
   "command_id": "CMD_20250912_003",
   "command_type": "lock",
   "requires_ack": true,
@@ -986,13 +1075,13 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
 **步驟2 - 機台執行並回應**:
 ```json
 {
-  "timestamp": "2025-09-12T11:45:02.000Z",
+  "timestamp": 1726136702,
   "ack_command_id": "CMD_20250912_003",
   "status": "success",
   "result": {
     "action_completed": "locked",
-    "lock_start_time": "2025-09-12T11:45:02.000Z",
-    "lock_end_time": "2025-09-12T13:45:02.000Z",
+    "lock_start_time": 1726136702,
+    "lock_end_time": 1726143902,
     "display_message_set": true,
     "services_disabled": ["coin_accept", "bill_accept", "dispense"],
     "monitoring_active": true    // 監控功能仍運作
@@ -1003,7 +1092,7 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
 **步驟3 - 解鎖命令**:
 ```json
 {
-  "timestamp": "2025-09-12T13:00:00.000Z",
+  "timestamp": 1726141200,
   "command_id": "CMD_20250912_004",
   "command_type": "lock", 
   "requires_ack": true,
@@ -1024,7 +1113,7 @@ coinerex/commands/{device_id}/ack  # 雲端命令確認
 
 ```json
 {
-  "timestamp": "2025-09-12T14:15:00.000Z",
+  "timestamp": 1726145700,
   "command_id": "CMD_20250912_005",
   "command_type": "query",
   "requires_ack": false,       // 查詢不需ACK
@@ -1081,7 +1170,7 @@ import json
 import uuid
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Optional
 import paho.mqtt.client as mqtt
 
@@ -1109,6 +1198,9 @@ class CoinerMQTTClient:
         }
         self.last_date = ""  # 追蹤日期變更
         
+        # 設定UTC+8時區
+        self.utc8_tz = timezone(timedelta(hours=8))
+
         # 啟動ACK監控執行緒
         self.ack_monitor_thread = threading.Thread(target=self._monitor_acks, daemon=True)
         self.ack_monitor_thread.start()
@@ -1238,7 +1330,7 @@ class CoinerMQTTClient:
             
             # 重新生成訊息ID避免重複
             message["message_id"] = str(uuid.uuid4())
-            message["timestamp"] = datetime.utcnow().isoformat() + "Z"
+            message["timestamp"] = int(datetime.now(self.utc8_tz).timestamp())
             
             self._publish_with_ack(topic, message, requires_ack=True)
         
@@ -1246,7 +1338,7 @@ class CoinerMQTTClient:
 
     def generate_transaction_id(self, transaction_type: str) -> str:
         """生成交易ID"""
-        now = datetime.now()
+        now = datetime.now(self.utc8_tz)
         current_date = now.strftime("%Y%m%d")
         current_time = now.strftime("%H%M%S")
 
@@ -1272,11 +1364,11 @@ class CoinerMQTTClient:
     def publish_accounting(self, accounting_data: Dict[str, Any]):
         """發布總帳資料"""
         message = {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": int(datetime.now(self.utc8_tz).timestamp()),
             "device_id": self.device_id,
             "message_id": str(uuid.uuid4()),
             "message_type": "accounting",
-            "version": "1.1",
+            "version": "1.3.2",
             "data": accounting_data
         }
         
@@ -1286,11 +1378,11 @@ class CoinerMQTTClient:
     def publish_transaction(self, transaction_data: Dict[str, Any]):
         """發布交易事件"""
         message = {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": int(datetime.now(self.utc8_tz).timestamp()),
             "device_id": self.device_id,
             "message_id": str(uuid.uuid4()),
             "message_type": "transaction", 
-            "version": "1.1",
+            "version": "1.3.2",
             "data": transaction_data
         }
         
@@ -1300,11 +1392,11 @@ class CoinerMQTTClient:
     def publish_error(self, error_code: int, description: str):
         """發布故障通知"""
         message = {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": int(datetime.now(self.utc8_tz).timestamp()),
             "device_id": self.device_id,
             "message_id": str(uuid.uuid4()),
             "message_type": "error",
-            "version": "1.1", 
+            "version": "1.3.2", 
             "data": {
                 "error_code": error_code,
                 "error_description": description,
@@ -1320,11 +1412,11 @@ class CoinerMQTTClient:
     def publish_heartbeat(self, heartbeat_data: Dict[str, Any]):
         """發布心跳訊息"""
         message = {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": int(datetime.now(self.utc8_tz).timestamp()),
             "device_id": self.device_id,
             "message_id": str(uuid.uuid4()),
             "message_type": "heartbeat",
-            "version": "1.1",
+            "version": "1.3.2",
             "data": heartbeat_data
         }
         
@@ -1363,7 +1455,7 @@ class CoinerMQTTClient:
     def send_command_ack(self, command_id: str, status: str, result: Dict[str, Any]):
         """發送命令執行結果確認"""
         ack_message = {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": int(datetime.now(self.utc8_tz).timestamp()),
             "ack_command_id": command_id,
             "status": status,
             "result": result
@@ -1462,7 +1554,7 @@ heartbeat_data = {
     "status": "online",
     "firmware_version": "1.3",
     "uptime_seconds": 86400,
-    "last_transaction": "2025-09-12T09:45:00.000Z",
+    "last_transaction": 1726129500,
     "network_quality": "good",
     "memory_usage": 45
 }
