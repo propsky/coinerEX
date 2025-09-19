@@ -1,0 +1,44 @@
+[Unit]
+Description=Hello OTA - Python OTA更新示範應用程式
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=hello-ota
+Group=hello-ota
+WorkingDirectory=/opt/hello-ota
+ExecStart=/usr/bin/python3 /opt/hello-ota/main.py
+ExecReload=/bin/kill -HUP $MAINPID
+
+# 重啟設定
+Restart=always
+RestartSec=10
+StartLimitInterval=60
+StartLimitBurst=3
+
+# 資源限制
+MemoryLimit=256M
+CPUQuota=50%
+
+# 安全設定
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/hello-ota /var/log/hello-ota /tmp
+
+# 環境變數
+Environment=PYTHONPATH=/opt/hello-ota
+Environment=PYTHONUNBUFFERED=1
+
+# PID檔案
+PIDFile=/var/run/hello-ota.pid
+
+# 標準輸出導向journal
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=hello-ota
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,11 @@
+# Hello OTA Python依賴套件
+
+# HTTP客戶端
+requests>=2.25.0
+
+# 開發和測試工具（可選）
+pytest>=6.0.0
+pytest-cov>=2.10.0
+
+# 日誌和監控（可選）
+structlog>=21.0.0
