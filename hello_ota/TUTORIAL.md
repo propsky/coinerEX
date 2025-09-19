@@ -10,8 +10,9 @@
 4. [OTA更新流程](#ota更新流程)
 5. [建立更新包](#建立更新包)
 6. [測試案例](#測試案例)
-7. [故障排除](#故障排除)
-8. [進階配置](#進階配置)
+7. [整合到自己的應用程式](#整合到自己的應用程式)
+8. [故障排除](#故障排除)
+9. [進階配置](#進階配置)
 
 ## 環境準備
 
@@ -267,6 +268,430 @@ echo "新版本: $new_version"
 # 清理
 kill $SERVER_PID
 ```
+
+## 整合到自己的應用程式
+
+這個章節將說明如何將Hello OTA的OTA功能整合到您自己開發的Python應用程式中。
+
+### 快速整合方案
+
+#### 1. 複製核心模組
+
+將以下檔案複製到您的專案中：
+
+```bash
+# 從hello_ota專案複製核心檔案
+cp hello_ota/app/ota_manager.py your_project/
+cp hello_ota/app/config.py your_project/
+cp hello_ota/app/version.py your_project/
+```
+
+#### 2. 修改您的主程式
+
+在您的應用程式主程式中新增OTA功能：
+
+```python
+# your_app.py
+import threading
+import time
+from ota_manager import OTAManager
+from config import config
+
+class YourApplication:
+    def __init__(self):
+        self.running = True
+        self.ota_manager = OTAManager()
+
+        # 您的應用程式初始化...
+
+    def start(self):
+        """啟動應用程式"""
+        # 啟動OTA檢查線程（如果啟用）
+        if config.get('ota.enabled', True):
+            self._start_ota_checker()
+
+        # 您的應用程式主邏輯...
+        self.main_loop()
+
+    def _start_ota_checker(self):
+        """啟動OTA檢查線程"""
+        def ota_check_loop():
+            interval = config.get('ota.check_interval', 300)  # 5分鐘
+            while self.running:
+                try:
+                    update_info = self.ota_manager.check_for_updates()
+                    if update_info and config.get('ota.auto_update', False):
+                        print("發現更新且已啟用自動更新")
+                        self._perform_update(update_info)
+                except Exception as e:
+                    print(f"OTA檢查失敗: {e}")
+
+                time.sleep(interval)
+
+        ota_thread = threading.Thread(target=ota_check_loop)
+        ota_thread.daemon = True
+        ota_thread.start()
+
+    def _perform_update(self, update_info):
+        """執行OTA更新"""
+        try:
+            print(f"開始執行OTA更新到版本 {update_info['version']}")
+
+            # 下載更新
+            update_file = self.ota_manager.download_update(update_info)
+
+            # 套用更新（這會導致程式退出）
+            self.ota_manager.apply_update(update_file, update_info)
+
+        except Exception as e:
+            print(f"OTA更新失敗: {e}")
+
+    def handle_ota_trigger(self, update_data):
+        """處理手動觸發的OTA更新"""
+        try:
+            # 在背景執行更新
+            update_thread = threading.Thread(
+                target=self._perform_update,
+                args=(update_data,)
+            )
+            update_thread.daemon = True
+            update_thread.start()
+
+            return {"status": "accepted", "message": "更新請求已接受"}
+
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+```
+
+#### 3. 設定版本管理
+
+建立或修改版本檔案：
+
+```python
+# version.py
+__version__ = "1.0.0"  # 您的應用程式版本
+__build_date__ = "2025-01-20"
+__description__ = "您的應用程式名稱"
+
+def get_version_info():
+    return {
+        "version": __version__,
+        "build_date": __build_date__,
+        "description": __description__
+    }
+```
+
+#### 4. 新增HTTP API端點（可選）
+
+如果您的應用程式有HTTP服務器，可以新增OTA相關端點：
+
+```python
+# 新增到您的HTTP路由中
+def handle_ota_status(self):
+    """取得OTA狀態"""
+    from version import __version__
+    return {
+        "current_version": __version__,
+        "ota_enabled": config.get('ota.enabled', True),
+        "update_history": self.ota_manager.get_update_history()[-5:]
+    }
+
+def handle_trigger_update(self, request_data):
+    """處理觸發更新請求"""
+    return self.handle_ota_trigger(request_data)
+
+def handle_check_update(self):
+    """手動檢查更新"""
+    update_info = self.ota_manager.check_for_updates()
+    if update_info:
+        return update_info
+    else:
+        return {
+            "has_update": False,
+            "current_version": __version__,
+            "message": "目前已是最新版本"
+        }
+```
+
+### 針對特定應用類型的整合
+
+#### 兌幣機IPC應用程式整合
+
+針對您的兌幣機專案，特別推薦以下整合方式：
+
+```python
+# coiner_ipc_app.py
+import time
+from ota_manager import OTAManager
+from mqtt_client import CoinerMQTTClient  # 您現有的MQTT客戶端
+
+class CoinerIPCApp:
+    def __init__(self):
+        self.mqtt_client = CoinerMQTTClient()
+        self.ota_manager = OTAManager()
+
+        # 註冊OTA命令處理器
+        self.mqtt_client.register_command_handler('ota_update', self.handle_ota_command)
+
+    def handle_ota_command(self, command_data):
+        """處理MQTT OTA命令"""
+        try:
+            # 驗證命令來源和權限
+            if not self._verify_ota_permission(command_data):
+                return {"status": "rejected", "reason": "權限不足"}
+
+            # 執行OTA更新
+            update_info = {
+                "version": command_data["version"],
+                "download_url": command_data["download_url"],
+                "checksum": command_data.get("checksum", "")
+            }
+
+            result = self.handle_ota_trigger(update_info)
+
+            # 通過MQTT回報結果
+            self.mqtt_client.send_command_response(
+                command_data["command_id"],
+                result
+            )
+
+        except Exception as e:
+            self.mqtt_client.send_command_response(
+                command_data["command_id"],
+                {"status": "error", "message": str(e)}
+            )
+```
+
+#### 簡單守護程式整合
+
+對於簡單的守護程式應用：
+
+```python
+# simple_daemon.py
+import signal
+import sys
+from ota_manager import OTAManager
+
+class SimpleDaemon:
+    def __init__(self):
+        self.running = True
+        self.ota_manager = OTAManager()
+
+        # 設定信號處理
+        signal.signal(signal.SIGTERM, self._signal_handler)
+        signal.signal(signal.SIGUSR1, self._ota_signal_handler)  # 用於觸發OTA
+
+    def _signal_handler(self, signum, frame):
+        """處理停止信號"""
+        self.running = False
+
+    def _ota_signal_handler(self, signum, frame):
+        """處理OTA觸發信號"""
+        try:
+            update_info = self.ota_manager.check_for_updates()
+            if update_info:
+                self._perform_update(update_info)
+        except Exception as e:
+            print(f"OTA更新失敗: {e}")
+
+    def main_loop(self):
+        """主要工作循環"""
+        while self.running:
+            # 您的應用程式邏輯
+            time.sleep(1)
+```
+
+### 自訂OTA管理器
+
+如果您需要更多客製化功能：
+
+```python
+# custom_ota_manager.py
+from ota_manager import OTAManager
+
+class CustomOTAManager(OTAManager):
+    def __init__(self, app_config):
+        super().__init__()
+        self.app_config = app_config
+
+        # 自訂路徑
+        self.app_dir = app_config.get('app_dir')
+        self.backup_dir = app_config.get('backup_dir')
+
+    def check_for_updates(self):
+        """自訂更新檢查邏輯"""
+        # 可以整合您自己的更新服務器API
+        from version import __version__
+
+        # 呼叫您的更新API
+        response = self._call_your_update_api(__version__)
+
+        if response.get('has_update'):
+            return {
+                'has_update': True,
+                'latest_version': response['latest_version'],
+                'download_url': response['download_url'],
+                'checksum': response['checksum']
+            }
+        return None
+
+    def _call_your_update_api(self, current_version):
+        """呼叫您自己的更新API"""
+        # 實作您的更新檢查邏輯
+        pass
+
+    def _pre_update_hook(self):
+        """更新前的自訂操作"""
+        # 例如：停止特定服務、備份設定檔等
+        pass
+
+    def _post_update_hook(self):
+        """更新後的自訂操作"""
+        # 例如：遷移資料、更新設定等
+        pass
+```
+
+### 設定檔整合
+
+建立適合您應用程式的設定檔：
+
+```json
+{
+  "app": {
+    "name": "your-app-name",
+    "version": "1.0.0",
+    "environment": "production"
+  },
+  "ota": {
+    "enabled": true,
+    "update_server": "https://your-update-server.com",
+    "check_interval": 3600,
+    "auto_update": false,
+    "backup_count": 5,
+    "allowed_hours": [2, 3, 4],
+    "maintenance_window": true
+  },
+  "security": {
+    "require_signature": true,
+    "trusted_sources": [
+      "https://your-update-server.com"
+    ]
+  }
+}
+```
+
+### systemd服務整合
+
+為您的應用程式建立systemd服務檔案：
+
+```ini
+# /etc/systemd/system/your-app.service
+[Unit]
+Description=Your Application with OTA Support
+After=network.target
+
+[Service]
+Type=simple
+User=your-app-user
+Group=your-app-group
+WorkingDirectory=/opt/your-app
+ExecStart=/usr/bin/python3 /opt/your-app/main.py
+Restart=always
+RestartSec=10
+
+# OTA支援環境變數
+Environment=OTA_ENABLED=true
+Environment=OTA_CONFIG_FILE=/etc/your-app/config.json
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### 測試整合
+
+建立測試腳本驗證整合：
+
+```python
+# test_integration.py
+import unittest
+from your_app import YourApplication
+
+class TestOTAIntegration(unittest.TestCase):
+    def setUp(self):
+        self.app = YourApplication()
+
+    def test_ota_manager_initialization(self):
+        """測試OTA管理器初始化"""
+        self.assertIsNotNone(self.app.ota_manager)
+
+    def test_ota_configuration(self):
+        """測試OTA設定"""
+        from config import config
+        self.assertTrue(config.get('ota.enabled'))
+
+    def test_version_info(self):
+        """測試版本資訊"""
+        from version import get_version_info
+        info = get_version_info()
+        self.assertIn('version', info)
+        self.assertIn('build_date', info)
+
+if __name__ == '__main__':
+    unittest.main()
+```
+
+### 整合檢查清單
+
+完成整合後，請檢查以下項目：
+
+- [ ] **版本管理**：確保版本號正確設定
+- [ ] **設定檔**：OTA相關設定正確配置
+- [ ] **路徑設定**：應用程式、備份、日誌目錄正確
+- [ ] **權限設定**：服務用戶有適當的讀寫權限
+- [ ] **網路設定**：能夠連接到更新服務器
+- [ ] **測試驗證**：手動觸發更新測試成功
+- [ ] **服務整合**：systemd服務正常運作
+- [ ] **日誌記錄**：OTA操作有完整日誌
+- [ ] **回滾機制**：更新失敗時能正確回滾
+- [ ] **安全性**：檔案校驗和權限控制正常
+
+### 常見整合問題
+
+#### 1. 模組導入錯誤
+
+**問題**：`ModuleNotFoundError: No module named 'ota_manager'`
+
+**解決方案**：
+```python
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent))
+from ota_manager import OTAManager
+```
+
+#### 2. 權限問題
+
+**問題**：OTA更新時權限不足
+
+**解決方案**：
+```bash
+# 確保服務用戶有適當權限
+sudo chown -R your-app-user:your-app-group /opt/your-app
+sudo chmod +x /opt/your-app/main.py
+```
+
+#### 3. 設定檔路徑問題
+
+**問題**：找不到設定檔
+
+**解決方案**：
+```python
+# 使用絕對路徑或環境變數
+config_file = os.environ.get('OTA_CONFIG_FILE', '/etc/your-app/config.json')
+config = Config(config_file)
+```
+
+通過以上步驟，您就可以將Hello OTA的功能成功整合到自己的Python應用程式中，實現安全可靠的遠端更新功能。
 
 ## 故障排除
 
